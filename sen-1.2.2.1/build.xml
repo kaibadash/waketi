@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8" ?>
+
+<!--
+ - jars     : creates the "lucene-ja.jar, lucene-demo-ja.jar, sen.jar" package in "./build/lib"
+ - webapp      : creates the "lucene.war in "./build/lib"
+ - javadocs : creates the javadocs in "./build/javadocs"
+ - dist     : creates the complete binary distribution
+ - srcdist  : creates the complete src distribution
+-->
+
+<project default="jar" basedir=".">
+
+  <!-- begin initial environment -->
+  <property name="name" value="sen"/>
+  <property name="version" value="1.2.2.1"/>
+
+  <property name="sen.jar" value="sen.jar"/>
+  <property name="src.dir" location="src/java"/>
+  <property name="test.dir" location="src/test"/>
+  <property name="docs.dir" location="docs"/>
+  <property name="lib.dir" location="lib"/>
+  <property name="build.javadocs" location="${docs.dir}/api"/>
+  <property name="dist.dir" location="dist"/>
+  <property name="build.dest" location="build"/>
+  <property name="build.classes" location="build/classes"/>
+  <property name="build.lib" location="build/lib"/>
+  <property name="javadocdir" location="docs/api"/>
+
+  <path id="classpath">
+      <fileset dir="${lib.dir}">
+          <include name="*.jar"/>
+      </fileset>
+  </path>
+
+  <!-- build/classes -->
+  <target name="init">
+    <mkdir dir="${build.dest}"/>
+    <mkdir dir="${build.classes}"/>
+    <mkdir dir="${build.lib}"/>
+  </target>
+
+
+  <!-- end initial environment -->
+
+  <target name="compile" depends="init">
+
+    <exec executable="cpp" output="${src.dir}/net/java/sen/util/DoubleArrayTrie.java" >
+	<arg line="-P ${src.dir}/net/java/sen/util/DoubleArrayTrie.cpp"/>
+    </exec>
+
+    <javac srcdir="${src.dir}"
+           destdir="${build.classes}"
+           debug="true"
+           deprecation="${deprecation}"
+           encoding="euc_jp"
+           source="1.3"
+           classpathref="classpath">
+    </javac>
+
+  </target>
+
+
+  <target name="javadocs" depends="init">
+    <mkdir dir="${javadocdir}"/>
+    <javadoc sourcepath="${src.dir}"
+             classpathref="classpath"
+             destdir="${javadocdir}"
+             author="true"
+             version="true"
+             use="true"
+             windowtitle="${Name} API"
+             doctitle="${Name}"
+			 locale="en_US"
+             source="1.3"
+    >
+      <fileset dir="${src.dir}">
+          <include name="**/*.java"/>
+      </fileset>
+    </javadoc>
+  </target>
+
+
+  <target name="jar" depends="compile">
+    <copy todir="${build.classes}/net/java/sen/resources">
+    	<fileset dir="${src.dir}/net/java/sen/resources" />
+    </copy>
+    <jar jarfile="${lib.dir}/${sen.jar}" basedir="${build.classes}" >
+      <include name="*/**" />
+    </jar>
+  </target>
+
+
+  <target name="dist" depends="jar,javadocs">
+	<delete dir="${build.dest}/${name}-${version}" />
+  	<mkdir dir="${build.dest}/${name}-${version}"/>
+  	<copy todir="${build.dest}/${name}-${version}">
+  		<fileset dir=".">
+			<include name="**/*" />
+			<exclude name="**/TEST*" />
+			<exclude name="**/test/**/*" />
+  		</fileset>
+  	</copy>
+	<delete dir="${build.dest}/${name}-${version}/build" />
+  	<copy todir="${build.dest}/${name}-${version}/lib"
+	      file="${lib.dir}/${sen.jar}"/>
+
+    <zip file="${build.dest}/${name}-${version}.zip" basedir="${build.dest}" >
+      <include name="${name}-${version}/**" />
+    </zip>
+  </target>
+
+  <target name="srcdist" depends="javadocs">
+  </target>
+
+  <target name="clean"
+      description="clean up">
+    <delete dir="${build.dest}"/>
+    <delete>
+  		<fileset dir=".">
+			<include name="TEST*" />
+  		</fileset>
+    </delete>
+  </target>
+
+  <target name="test" depends="jar"
+      description="test">
+  	
+    <javac srcdir="${test.dir}"
+           destdir="${build.classes}"
+           debug="true"
+           deprecation="${deprecation}"
+           encoding="euc_jp"
+           source="1.3"
+           classpathref="classpath">
+    </javac>
+  	
+    <junit fork="yes">
+      <jvmarg value="-Dsen.home=. -Xmx140m"/>
+      <classpath>
+        <pathelement path="classpath"/>
+        <pathelement location="build/classes"/>
+      </classpath>
+      <batchtest fork="no" todir=".">
+        <fileset dir="${test.dir}">
+          <include name="**/*Test.java" />
+        </fileset>
+      </batchtest>
+        <formatter type="plain" />
+    </junit>
+  </target>
+
+</project>
+
+
