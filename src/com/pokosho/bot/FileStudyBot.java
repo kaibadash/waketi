@@ -14,8 +14,8 @@ import com.pokosho.PokoshoException;
  */
 public class FileStudyBot extends AbstractBot {
 
-	public FileStudyBot() throws PokoshoException {
-		super();
+	public FileStudyBot(String propPath) throws PokoshoException {
+		super(propPath);
 	}
 
 	@Override
@@ -44,19 +44,3 @@ public class FileStudyBot extends AbstractBot {
 		}
 	}
 }
-
-/*
-
-// debug sql
-SELECT c.prefix01, w1.word_id, w1.word,
-c.prefix02, w2.word_id, w2.word,
-c.safix, w3.word_id, w3.word
- FROM   chain c
- INNER JOIN word w1
- ON c.prefix01 = w1.word_id
- INNER JOIN word w2
- ON c.prefix02 = w2.word_id
- INNER JOIN word w3
- ON c.safix = w3.word_id;
-
-*/
