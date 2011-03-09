@@ -2,15 +2,14 @@
 <classpath>
 	<classpathentry kind="src" path="src"/>
 	<classpathentry exported="true" kind="lib" path="lib/activeobjects-0.8.2.jar"/>
-	<classpathentry exported="true" kind="lib" path="lib/c3p0-0.9.1.2.jar"/>
-	<classpathentry exported="true" kind="lib" path="lib/mysql-connector-java-5.1.13-bin.jar"/>
-	<classpathentry exported="true" kind="lib" path="lib/twitter4j-core-2.1.7-SNAPSHOT.jar"/>
-	<classpathentry kind="lib" path="sen-1.2.2.1/lib/sen.jar"/>
+	<classpathentry kind="lib" path="lib/c3p0-0.9.1.2.jar"/>
 	<classpathentry kind="lib" path="lib/commons-logging-1.1.1.jar"/>
 	<classpathentry kind="lib" path="lib/logback-classic-0.9.28.jar"/>
 	<classpathentry kind="lib" path="lib/logback-core-0.9.28.jar"/>
+	<classpathentry kind="lib" path="lib/mysql-connector-java-5.1.13-bin.jar"/>
 	<classpathentry kind="lib" path="lib/slf4j-api-1.6.1.jar"/>
-	<classpathentry kind="lib" path="conf/logback.xml"/>
-	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="lib" path="lib/twitter4j-core-2.1.7-SNAPSHOT.jar"/>
+	<classpathentry kind="lib" path="sen-1.2.2.1/lib/sen.jar"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.6"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

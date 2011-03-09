@@ -21,4 +21,10 @@ public interface Chain extends Entity {
 	public void setPrefix01(Integer prefix01);
 	public void setPrefix02(Integer prefix02);
 	public void setSafix(Integer safix);
+
+	/**
+	 * 開始かどうか
+	 */
+	public Boolean getStart();
+	public void setStart(Boolean start);
 }

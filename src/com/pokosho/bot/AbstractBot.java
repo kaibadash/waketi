@@ -179,13 +179,13 @@ public abstract class AbstractBot {
 				chainTmp[0] = chainTmp[1];
 				chainTmp[1] = chainTmp[2];
 				chainTmp[2] = existWord[0].getWord_ID();
-				createChain(chainTmp[0], chainTmp[1], chainTmp[2]);
+				createChain(chainTmp[0], chainTmp[1], chainTmp[2], i == 3);
 			} else {
 				// Chainを準備
 				if (chainTmp[0] != null) {
 					if (chainTmp[1] != null) {
 						chainTmp[2] = existWord[0].getWord_ID(); // chain 完成
-						createChain(chainTmp[0], chainTmp[1], chainTmp[2]);
+						createChain(chainTmp[0], chainTmp[1], chainTmp[2], false);
 					} else {
 						chainTmp[1] = existWord[0].getWord_ID();
 					}
@@ -195,11 +195,11 @@ public abstract class AbstractBot {
 			}
 		}
 		// EOS
-		createChain(chainTmp[1], chainTmp[2], null);
+		createChain(chainTmp[1], chainTmp[2], null, false);
 	}
 
 	protected void createChain(final Integer prefix01, final Integer prefix02,
-			final Integer safix) throws SQLException {
+			final Integer safix, final Boolean start) throws SQLException {
 		System.out.println(String.format("createChain:%d,%d,%d", prefix01,
 				prefix02, safix));
 		if (prefix01 == null || prefix02 == null) {
@@ -219,14 +219,17 @@ public abstract class AbstractBot {
 			return;
 		}
 		if (safix == null) {
-			manager.create(Chain.class, new DBParam(
-					TableInfo.TABLE_CHAIN_PREFIX01, prefix01), new DBParam(
-					TableInfo.TABLE_CHAIN_PREFIX02, prefix02));
+			// 文章の終了
+			manager.create(Chain.class,
+					new DBParam(TableInfo.TABLE_CHAIN_PREFIX01, prefix01),
+					new DBParam(TableInfo.TABLE_CHAIN_PREFIX02, prefix02),
+					new DBParam(TableInfo.TABLE_CHAIN_START, start));
 		} else {
-			manager.create(Chain.class, new DBParam(
-					TableInfo.TABLE_CHAIN_PREFIX01, prefix01), new DBParam(
-					TableInfo.TABLE_CHAIN_PREFIX02, prefix02), new DBParam(
-					TableInfo.TABLE_CHAIN_SUFFIX, safix));
+			manager.create(Chain.class,
+					new DBParam(TableInfo.TABLE_CHAIN_PREFIX01, prefix01),
+					new DBParam(TableInfo.TABLE_CHAIN_PREFIX02, prefix02),
+					new DBParam(TableInfo.TABLE_CHAIN_SUFFIX, safix),
+					new DBParam(TableInfo.TABLE_CHAIN_START, start));
 		}
 	}
 

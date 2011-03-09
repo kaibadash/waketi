@@ -32,10 +32,10 @@ import com.pokosho.bot.AbstractBot;
 
 public class TwitterBot extends AbstractBot {
 	private static Logger log = LoggerFactory.getLogger(TwitterBot.class);
-	private static final boolean DEBUG = true; // かならず全処理を行う
+	private static final boolean DEBUG = false; // かならず全処理を行う
 	private static final String WORK_LAST_READ_FILE = "waketi_last_read.txt";
 	private static final int FOLLOW_INTERVAL_MSEC = 60 * 60 * 24 * 1000; // フォロー返しの間隔
-	private static final int GET_HOME_TIMELINE_TIMES = 5; // 20 x N個
+	private static final int STATUS_MAX_COUNT = 200;
 
 	private Twitter twitter;
 	private String consumerKey;
@@ -105,22 +105,10 @@ public class TwitterBot extends AbstractBot {
 
 			// HomeTimeLine取得
 			long id = loadLastRead();
-			ResponseList<Status> homeTimeLineList = twitter.getHomeTimeline();
 			Paging page = new Paging();
+			page.setCount(STATUS_MAX_COUNT);
+			ResponseList<Status> homeTimeLineList = twitter.getHomeTimeline(page);
 			Status last = homeTimeLineList.get(0);
-			for (int i = 0; i < GET_HOME_TIMELINE_TIMES - 1; i++) {
-				log.debug("getHomeTimeline:" + i);
-				List<Status> newList = twitter.getHomeTimeline(page);
-				homeTimeLineList.addAll(newList);
-				if (!DEBUG) {
-					if (0 < id && newList != null && 0 < newList.size()) {
-						if (newList.get(0).getId() <= id || id <= newList.get(newList.size() - 1).getId()) {
-							break; //すでに読んだところまで来た
-						}
-					}
-				}
-				page.setSinceId(newList.get(newList.size() - 1).getId());
-			}
 			saveLastRead(last.getId());
 			log.info("size of homeTimelineList:" + homeTimeLineList.size());
 			for (Status s : homeTimeLineList) {
