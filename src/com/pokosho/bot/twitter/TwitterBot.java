@@ -29,9 +29,13 @@ import twitter4j.http.AccessToken;
 
 import com.pokosho.PokoshoException;
 import com.pokosho.bot.AbstractBot;
+import com.pokosho.util.StringUtils;
 
 public class TwitterBot extends AbstractBot {
 	private static Logger log = LoggerFactory.getLogger(TwitterBot.class);
+	private final static String DB_PROP = "./conf/db.properties";
+	private final static String BOT_PROP = "./conf/bot.properties";
+	private final static String LOG_PROP = "./conf/log.properties";
 	private static final boolean DEBUG = false; // かならず全処理を行う
 	private static final String WORK_LAST_READ_FILE = "waketi_last_read.txt";
 	private static final int FOLLOW_INTERVAL_MSEC = 60 * 60 * 24 * 1000; // フォロー返しの間隔
@@ -51,7 +55,7 @@ public class TwitterBot extends AbstractBot {
 
 	public TwitterBot(String dbPropPath, String botPropPath)
 			throws PokoshoException {
-		super(dbPropPath);
+		super(dbPropPath, botPropPath);
 		loadProp(botPropPath);
 		AccessToken token = new AccessToken(accessToken, accessTokenSecret);
 		twitter = new TwitterFactory().getOAuthAuthorizedInstance(consumerKey,
@@ -87,7 +91,7 @@ public class TwitterBot extends AbstractBot {
 	}
 
 	/**
-	 * HomeTimeLineから学習する. TODO:strが指定されたときはリストを対象とする？
+	 * HomeTimeLineから学習する. TODO:パラメータクラスをつくって、リストを指定できるようにする
 	 */
 	@Override
 	public void study(String str) throws PokoshoException {
@@ -126,7 +130,11 @@ public class TwitterBot extends AbstractBot {
 					tweet = TwitterUtils.removeUrl(tweet);
 					tweet = TwitterUtils.removeMention(tweet);
 					tweet = TwitterUtils.removeRTString(tweet);
-					studyFromLine(tweet);
+					String[] splited = tweet.split("。");
+					// 「。」で切れたところで文章の終わりとする
+					for (String msg : splited) {
+						studyFromLine(msg);
+					}
 				} catch (IOException e) {
 					log.error(e.toString());
 				} catch (SQLException e) {
@@ -235,5 +243,23 @@ public class TwitterBot extends AbstractBot {
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * ホームタイムラインから学習し、1回ツイートします.
+	 * @param args
+	 */
+	public static void main(String[] args) {
+		try {
+			System.setProperty("file.encoding", StringUtils.ENCODE_STRING);
+			System.setProperty("java.util.logging.config.file", LOG_PROP);
+			System.setProperty("twitter4j.loggerFactory", "twitter4j.internal.logging.NullLoggerFactory");
+
+			TwitterBot b = new TwitterBot(DB_PROP, BOT_PROP);
+			b.study(null);
+			b.say();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 }

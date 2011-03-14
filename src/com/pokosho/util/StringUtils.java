@@ -1,8 +1,13 @@
 package com.pokosho.util;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.pokosho.db.Pos;
 
 public class StringUtils {
+	private static Logger log = LoggerFactory.getLogger(StringUtils.class);
+	public static String ENCODE_STRING = "UTF-8";
 	private final static String NOUN = "名詞";
 	private final static String VERV = "動詞";
 	private final static String ADJECTIVE = "形容詞";
@@ -22,13 +27,17 @@ public class StringUtils {
 	 * @return
 	 */
 	public static String simplize(String str) {
+		// URLを削除
 		String res = str.replaceAll("^(https?|ftp)(:\\/\\/[-_.!~*\\'()a-zA-Z0-9;\\/?:\\@&=+\\$,%#]+)", "");
-		return str;
+		res = res.replaceAll("@[a-zA-Z0-9_]+", "");
+		res = res.replaceAll("[「」]", "");
+		res = res.replaceAll("\"", "");
+		return res;
 	}
 
 	public static Pos toPos(String posStr) {
 		String p = posStr.split("-")[0];
-		System.out.println("toPos:" + p + " detail:" + posStr);
+		log.debug("toPos:" + p + " detail:" + posStr);
 		if (p == null || p.length() == 0 || p.equals(UNKNOWN)) {
 			/* 未知語は名詞扱い */
 			return Pos.Noun;

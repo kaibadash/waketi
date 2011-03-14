@@ -14,8 +14,8 @@ import com.pokosho.PokoshoException;
  */
 public class FileStudyBot extends AbstractBot {
 
-	public FileStudyBot(String propPath) throws PokoshoException {
-		super(propPath);
+	public FileStudyBot(String dbPropPath, String botPropPath) throws PokoshoException {
+		super(dbPropPath, botPropPath);
 	}
 
 	@Override

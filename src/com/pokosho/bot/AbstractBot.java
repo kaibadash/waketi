@@ -1,13 +1,13 @@
 package com.pokosho.bot;
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.Properties;
 
 import net.java.ao.DBParam;
 import net.java.ao.EntityManager;
@@ -15,8 +15,10 @@ import net.java.ao.Query;
 import net.java.sen.StringTagger;
 import net.java.sen.Token;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.pokosho.PokoshoException;
-import com.pokosho.bot.twitter.TwitterBot;
 import com.pokosho.dao.Chain;
 import com.pokosho.dao.Word;
 import com.pokosho.db.DBUtil;
@@ -30,7 +32,18 @@ public abstract class AbstractBot {
 	protected StringTagger tagger;
 	protected static EntityManager manager;
 
-	public AbstractBot(String dbPropPath) throws PokoshoException {
+	public AbstractBot(String dbPropPath, String botPropPath) throws PokoshoException {
+		Properties prop = new Properties();
+		try {
+			prop.load(new FileInputStream(botPropPath));
+		} catch (FileNotFoundException e1) {
+			log.equals(e1);
+			throw new PokoshoException(e1);
+		} catch (IOException e1) {
+			log.equals(e1);
+			throw new PokoshoException(e1);
+		}
+		System.setProperty("sen.home", prop.getProperty("com.pokosho.sendir"));
 		try {
 			manager = DBUtil.getEntityManager(dbPropPath);
 			tagger = StringTagger.getInstance();
@@ -61,14 +74,17 @@ public abstract class AbstractBot {
 		try {
 			conn = manager.getProvider().getConnection();
 			Chain[] chain = manager.find(Chain.class,
-					Query.select().order("rand() limit 1")); // TODO:posを見て先頭から助詞からはじまらないようにする
+					Query.select().where(TableInfo .TABLE_CHAIN_START + " = ?", true)
+					.order("rand() limit 1"));
 			if (chain == null || chain.length == 0) {
-				System.out.println("bot knows no words.");
+				log.debug("bot knows no words.");
 				return null;
 			}
 			List<Integer> idList = new ArrayList<Integer>();
+			idList.add(chain[0].getPrefix01());
+			idList.add(chain[0].getPrefix02());
 			while (true) {
-				System.out.println("pick next chain which has prefix01 id "
+				log.debug("pick next chain which has prefix01 id "
 						+ chain[0].getSuffix());
 				if (chain[0].getSuffix() == null) {
 					break;
@@ -97,7 +113,7 @@ public abstract class AbstractBot {
 				}
 				idList.add(nextChain[0].getPrefix01());
 				idList.add(nextChain[0].getPrefix02());
-				System.out.println("picked chain id "
+				log.debug("picked chain id "
 						+ nextChain[0].getChain_ID());
 				chain = nextChain;
 			}
@@ -135,6 +151,7 @@ public abstract class AbstractBot {
 	}
 
 	protected void studyFromLine(String str) throws IOException, SQLException {
+		log.info("studyFromLine:" + str);
 		if (str == null || str.length() < 0) {
 			return;
 		}
@@ -145,7 +162,7 @@ public abstract class AbstractBot {
 		}
 		Integer[] chainTmp = new Integer[CHAIN_COUNT];
 		for (int i = 0; i < token.length; i++) {
-			System.out.println(token[i].getBasicString() + "("
+			log.debug(token[i].getBasicString() + "("
 					+ token[i].getTermInfo() + ")");
 			Word[] existWord = manager.find(
 					Word.class,
@@ -179,13 +196,13 @@ public abstract class AbstractBot {
 				chainTmp[0] = chainTmp[1];
 				chainTmp[1] = chainTmp[2];
 				chainTmp[2] = existWord[0].getWord_ID();
-				createChain(chainTmp[0], chainTmp[1], chainTmp[2], i == 3);
+				createChain(chainTmp[0], chainTmp[1], chainTmp[2], false);
 			} else {
 				// Chainを準備
 				if (chainTmp[0] != null) {
 					if (chainTmp[1] != null) {
 						chainTmp[2] = existWord[0].getWord_ID(); // chain 完成
-						createChain(chainTmp[0], chainTmp[1], chainTmp[2], false);
+						createChain(chainTmp[0], chainTmp[1], chainTmp[2], true);
 					} else {
 						chainTmp[1] = existWord[0].getWord_ID();
 					}
@@ -200,10 +217,10 @@ public abstract class AbstractBot {
 
 	protected void createChain(final Integer prefix01, final Integer prefix02,
 			final Integer safix, final Boolean start) throws SQLException {
-		System.out.println(String.format("createChain:%d,%d,%d", prefix01,
+		log.debug(String.format("createChain:%d,%d,%d", prefix01,
 				prefix02, safix));
 		if (prefix01 == null || prefix02 == null) {
-			System.out.println("prefix is null.");
+			log.debug("prefix is null.");
 			return;
 		}
 		Chain[] existChain;
@@ -215,7 +232,7 @@ public abstract class AbstractBot {
 								+ TableInfo.TABLE_CHAIN_SUFFIX + "=?",
 						prefix01, prefix02, safix));
 		if (existChain != null && 0 < existChain.length) {
-			System.out.println("chain exists.");
+			log.debug("chain exists.");
 			return;
 		}
 		if (safix == null) {
