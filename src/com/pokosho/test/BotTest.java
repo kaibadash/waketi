@@ -42,8 +42,10 @@ public class BotTest {
 //	@SuppressWarnings("unused")
 	private static void startTwitterBot() throws PokoshoException {
 		TwitterBot b = new TwitterBot(DB_PROP, BOT_PROP);
-		b.study(null);
-		b.say();
+		//b.study(null);
+		//b.say();
+		//b.say("東京タワー登りたいの？");
+		b.reply();
 	}
 
 	@SuppressWarnings("unused")

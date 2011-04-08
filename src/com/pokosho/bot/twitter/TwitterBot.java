@@ -85,9 +85,47 @@ public class TwitterBot extends AbstractBot {
 		return s;
 	}
 
-	@Override
-	public String say(String from) {
-		return null;
+	public void reply() throws PokoshoException {
+		String s = null;
+
+		//long id = loadLastRead();
+		Paging page = new Paging();
+		page.setCount(STATUS_MAX_COUNT);
+		ResponseList<Status> mentionList;
+		try {
+			mentionList = twitter.getMentions(page);
+		} catch (TwitterException e1) {
+			throw new PokoshoException(e1);
+		}
+		//Status last = homeTimeLineList.get(0);
+		//saveLastRead(last.getId());
+
+		// TODO:どこまで読んだか記憶
+
+		for (Status from : mentionList) {
+			try {
+				Status fromfrom = null;
+				if (0 < from.getInReplyToStatusId()) {
+					fromfrom = twitter.showStatus(from.getInReplyToStatusId());
+				}
+				// リプライ元、リプライ先を連結してもっともコストが高い単語を使う
+				s = from.getText();
+				if (fromfrom != null) {
+					s = s +  "。" + fromfrom.getText();
+				}
+				// @xxx を削除
+				s = TwitterUtils.removeMention(s);
+				s = super.say(s);
+				if (s == null || s.length() == 0) {
+					log.error("no word");
+					return;
+				}
+				log.info("updateStatus:" + s);
+				twitter.updateStatus("@" + from.getUser().getScreenName() + " " + s, from.getId());
+			} catch (TwitterException e) {
+				new PokoshoException(e);
+			}
+		}
 	}
 
 	/**
@@ -258,6 +296,7 @@ public class TwitterBot extends AbstractBot {
 			TwitterBot b = new TwitterBot(DB_PROP, BOT_PROP);
 			b.study(null);
 			b.say();
+			b.reply();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

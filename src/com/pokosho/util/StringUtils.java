@@ -30,8 +30,14 @@ public class StringUtils {
 		// URLを削除
 		String res = str.replaceAll("^(https?|ftp)(:\\/\\/[-_.!~*\\'()a-zA-Z0-9;\\/?:\\@&=+\\$,%#]+)", "");
 		res = res.replaceAll("@[a-zA-Z0-9_]+", "");
-		res = res.replaceAll("[「」]", "");
+		res = res.replaceAll("[「【(（『].*[」】）』]", "");
 		res = res.replaceAll("\"", "");
+		return res;
+	}
+
+	public static String simplizeForReply(String str) {
+		String res = StringUtils.simplize(str);
+		res = res.replaceAll("[!！。¥¥-¥¥?]", "");
 		return res;
 	}
 
