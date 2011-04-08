@@ -20,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.pokosho.PokoshoException;
+import com.pokosho.bot.twitter.TwitterUtils;
 import com.pokosho.dao.Chain;
 import com.pokosho.dao.Word;
 import com.pokosho.db.DBUtil;
@@ -58,7 +59,7 @@ public abstract class AbstractBot {
 
 	/**
 	 * 学習する.
-	 * 
+	 *
 	 * @param file
 	 * @throws PokoshoException
 	 */
@@ -66,7 +67,7 @@ public abstract class AbstractBot {
 
 	/**
 	 * 発言を返す.
-	 * 
+	 *
 	 * @return 発言.
 	 * @throws PokoshoException
 	 */
@@ -102,7 +103,7 @@ public abstract class AbstractBot {
 
 	/**
 	 * 返事をする.
-	 * 
+	 *
 	 * @param from
 	 *            返信元メッセージ.
 	 * @return 返事.
@@ -184,6 +185,10 @@ public abstract class AbstractBot {
 	protected void studyFromLine(String str) throws IOException, SQLException {
 		log.info("studyFromLine:" + str);
 		if (str == null || str.length() < 0) {
+			return;
+		}
+		if (!TwitterUtils.containsJPN(str)) {
+			log.debug("it's not Japanese");
 			return;
 		}
 		str = StringUtils.simplize(str);
@@ -283,7 +288,7 @@ public abstract class AbstractBot {
 
 	/**
 	 * 単語のIDリストを作成する
-	 * 
+	 *
 	 * @throws SQLException
 	 */
 	private List<Integer> createWordIDList(Chain[] startChain)
@@ -329,7 +334,7 @@ public abstract class AbstractBot {
 
 	/**
 	 * 単語のIDリストを作成する
-	 * 
+	 *
 	 * @throws SQLException
 	 */
 	private LinkedList<Integer> createWordIDListEndToStart(
@@ -370,7 +375,7 @@ public abstract class AbstractBot {
 
 	/**
 	 * wordIDのリストから文章を作成する.
-	 * 
+	 *
 	 * @param idList
 	 * @return
 	 * @throws SQLException

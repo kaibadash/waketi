@@ -38,6 +38,7 @@ public class TwitterBot extends AbstractBot {
 	private final static String LOG_PROP = "./conf/log.properties";
 	private static final boolean DEBUG = false; // かならず全処理を行う
 	private static final String WORK_LAST_READ_FILE = "waketi_last_read.txt";
+	private static final String WORK_LAST_READ_MENTION_FILE = "waketi_last_read_mention.txt";
 	private static final int FOLLOW_INTERVAL_MSEC = 60 * 60 * 24 * 1000; // フォロー返しの間隔
 	private static final int STATUS_MAX_COUNT = 200;
 
@@ -87,23 +88,26 @@ public class TwitterBot extends AbstractBot {
 
 	public void reply() throws PokoshoException {
 		String s = null;
-
-		//long id = loadLastRead();
+		long id = loadLastRead(WORK_LAST_READ_MENTION_FILE);
 		Paging page = new Paging();
 		page.setCount(STATUS_MAX_COUNT);
 		ResponseList<Status> mentionList;
+		int selfID;
 		try {
+			selfID = twitter.getId();
 			mentionList = twitter.getMentions(page);
 		} catch (TwitterException e1) {
 			throw new PokoshoException(e1);
 		}
-		//Status last = homeTimeLineList.get(0);
-		//saveLastRead(last.getId());
-
-		// TODO:どこまで読んだか記憶
-
+		Status last = mentionList.get(0);
+		saveLastRead(last.getId(),WORK_LAST_READ_MENTION_FILE);
 		for (Status from : mentionList) {
 			try {
+				if (from.getId() == id) {
+					log.debug("found last mention id:" + id);
+					break;
+				}
+				if (from.getUser().getId() == selfID) continue;
 				Status fromfrom = null;
 				if (0 < from.getInReplyToStatusId()) {
 					fromfrom = twitter.showStatus(from.getInReplyToStatusId());
@@ -129,7 +133,8 @@ public class TwitterBot extends AbstractBot {
 	}
 
 	/**
-	 * HomeTimeLineから学習する. TODO:パラメータクラスをつくって、リストを指定できるようにする
+	 * HomeTimeLineから学習する.
+	 * TODO:パラメータクラスをつくって、リストを指定できるようにする
 	 */
 	@Override
 	public void study(String str) throws PokoshoException {
@@ -146,12 +151,12 @@ public class TwitterBot extends AbstractBot {
 			}
 
 			// HomeTimeLine取得
-			long id = loadLastRead();
+			long id = loadLastRead(WORK_LAST_READ_FILE);
 			Paging page = new Paging();
 			page.setCount(STATUS_MAX_COUNT);
 			ResponseList<Status> homeTimeLineList = twitter.getHomeTimeline(page);
 			Status last = homeTimeLineList.get(0);
-			saveLastRead(last.getId());
+			saveLastRead(last.getId(),WORK_LAST_READ_FILE);
 			log.info("size of homeTimelineList:" + homeTimeLineList.size());
 			for (Status s : homeTimeLineList) {
 				if (!DEBUG) {
@@ -184,12 +189,12 @@ public class TwitterBot extends AbstractBot {
 		}
 	}
 
-	private void saveLastRead(long id) {
+	private void saveLastRead(long id, String path) {
 		PrintWriter pw = null;
 		BufferedWriter bw = null;
 		FileWriter filewriter = null;
 		try {
-			File file = new File(WORK_LAST_READ_FILE);
+			File file = new File(path);
 			filewriter = new FileWriter(file);
 			bw = new BufferedWriter(filewriter);
 			pw = new PrintWriter(bw);
@@ -207,12 +212,12 @@ public class TwitterBot extends AbstractBot {
 		}
 	}
 
-	private long loadLastRead() {
+	private long loadLastRead(String path) {
 		long id = 0;
 		FileReader filereader = null;
 		BufferedReader br = null;
 		try {
-			File file = new File(WORK_LAST_READ_FILE);
+			File file = new File(path);
 			if (!file.exists()) return 0;
 			filereader = new FileReader(file);
 			br = new BufferedReader(filereader);
