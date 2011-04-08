@@ -122,7 +122,7 @@ public class TwitterBot extends AbstractBot {
 				s = super.say(s);
 				if (s == null || s.length() == 0) {
 					log.error("no word");
-					return;
+					continue;
 				}
 				log.info("updateStatus:" + s);
 				twitter.updateStatus("@" + from.getUser().getScreenName() + " " + s, from.getId());

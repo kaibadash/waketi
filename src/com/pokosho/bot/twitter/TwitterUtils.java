@@ -3,6 +3,9 @@ package com.pokosho.bot.twitter;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Twitter関連Utilクラス
+ */
 public class TwitterUtils {
 	private static final Pattern HASHTAG_PATTERN = Pattern.compile("#[a-z0-9_]*",Pattern.CASE_INSENSITIVE);
 	private static final Pattern URL_PATTERN = Pattern.compile("(http://|https://){1}[\\w\\.\\-/:\\#\\?\\=\\&\\;\\%\\~\\+]+", Pattern.CASE_INSENSITIVE);
