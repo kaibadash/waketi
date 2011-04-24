@@ -396,8 +396,8 @@ public abstract class AbstractBot {
 							idList.get(i)));
 			char lastChar = words[0].getWord().charAt(words[0].getWord().length() - 1);
 			// 半角英数の間にスペースを入れる
-			if (result.length() != 0 &&
-					'a' <= lastChar && lastChar <= 'Z' && 'a' <= result.charAt(result.length() - 1) && result.charAt(result.length() - 1) <= 'Z') {
+			if (result.length() != 0 && Character.isLetterOrDigit(lastChar) &&
+					Character.isLetterOrDigit(result.charAt(result.length() - 1))) {
 				result.append(" ");
 			}
 			result.append(words[0].getWord());
