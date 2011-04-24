@@ -39,6 +39,7 @@ public class TwitterBot extends AbstractBot {
 	private static final boolean DEBUG = false; // かならず全処理を行う
 	private static final String WORK_LAST_READ_FILE = "waketi_last_read.txt";
 	private static final String WORK_LAST_READ_MENTION_FILE = "waketi_last_read_mention.txt";
+	private static final String WORK_LAST_FOLLOW_FILE = "waketi_last_follow.txt";
 	private static final int FOLLOW_INTERVAL_MSEC = 60 * 60 * 24 * 1000; // フォロー返しの間隔
 	private static final int STATUS_MAX_COUNT = 200;
 
@@ -271,11 +272,14 @@ public class TwitterBot extends AbstractBot {
 
 	private List<Integer> calcNotFollow(IDs follower, IDs frends) {
 		List<Integer> returnValue = new ArrayList<Integer>();
+		long lastFollow = loadLastRead(WORK_LAST_FOLLOW_FILE);
 		for (int id : follower.getIDs()) {
+			if (lastFollow == id) break; // 最後にフォローしたところまで読んだ
 			if (!contains(frends, id)) {
 				returnValue.add(Integer.valueOf(id));
 			}
 		}
+		saveLastRead(follower.getIDs()[0], WORK_LAST_FOLLOW_FILE);
 		return returnValue;
 	}
 

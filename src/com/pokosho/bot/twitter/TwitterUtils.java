@@ -46,4 +46,15 @@ public class TwitterUtils {
 		Matcher matcher = CONTAIN_JPN_PATTERN.matcher(tweet);
 		return matcher.find();
 	}
+
+	/**
+	 * スパムかどうか判定する.
+	 * @param str
+	 * @return
+	 */
+	public boolean isSpam(String tweet) {
+		Matcher matcher = URL_PATTERN.matcher(tweet);
+		if (matcher.find()) return true;
+		return false;
+	}
 }

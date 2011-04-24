@@ -184,11 +184,16 @@ public abstract class AbstractBot {
 
 	protected void studyFromLine(String str) throws IOException, SQLException {
 		log.info("studyFromLine:" + str);
+		// スパム判定
 		if (str == null || str.length() < 0) {
 			return;
 		}
 		if (!TwitterUtils.containsJPN(str)) {
 			log.debug("it's not Japanese");
+			return;
+		}
+		if (!TwitterUtils.isSpamTweet(str)) {
+			log.debug("spam tweet:" + str);
 			return;
 		}
 		str = StringUtils.simplize(str);
@@ -389,6 +394,12 @@ public abstract class AbstractBot {
 					Word.class,
 					Query.select().where(TableInfo.TABLE_WORD_WORD_ID + "=?",
 							idList.get(i)));
+			char lastChar = words[0].getWord().charAt(words[0].getWord().length() - 1);
+			// 半角英数の間にスペースを入れる
+			if (result.length() != 0 &&
+					'a' <= lastChar && lastChar <= 'Z' && 'a' <= result.charAt(result.length() - 1) && result.charAt(result.length() - 1) <= 'Z') {
+				result.append(" ");
+			}
 			result.append(words[0].getWord());
 		}
 		return result.toString();
