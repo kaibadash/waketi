@@ -141,6 +141,7 @@ public class TwitterBot extends AbstractBot {
 	public void study(String str) throws PokoshoException {
 		IDs frends;
 		IDs follower;
+		log.debug("start study ------------------------------------");
 		try {
 			// WORKファイルのタイムスタンプを見て、指定時間経っていたら、フォロー返しを実行
 			File f = new File(WORK_LAST_READ_FILE);
@@ -188,6 +189,7 @@ public class TwitterBot extends AbstractBot {
 		} catch (TwitterException e) {
 			log.error(e.toString());
 		}
+		log.debug("end study ------------------------------------");
 	}
 
 	private void saveLastRead(long id, String path) {

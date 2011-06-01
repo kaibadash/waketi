@@ -37,13 +37,17 @@ public abstract class AbstractBot {
 	public AbstractBot(String dbPropPath, String botPropPath)
 			throws PokoshoException {
 		Properties prop = new Properties();
+		log.debug("dbPropPath:" + dbPropPath);
+		log.debug("botPropPath:" + botPropPath);
 		try {
 			prop.load(new FileInputStream(botPropPath));
 		} catch (FileNotFoundException e1) {
 			log.equals(e1);
+			log.debug("FileNotFoundException");
 			throw new PokoshoException(e1);
 		} catch (IOException e1) {
 			log.equals(e1);
+			log.debug("IOException");
 			throw new PokoshoException(e1);
 		}
 		System.setProperty("sen.home", prop.getProperty("com.pokosho.sendir"));
@@ -51,8 +55,10 @@ public abstract class AbstractBot {
 			manager = DBUtil.getEntityManager(dbPropPath);
 			tagger = StringTagger.getInstance();
 		} catch (IllegalArgumentException e) {
+			log.debug("111");
 			throw new PokoshoException(e);
 		} catch (IOException e) {
+			log.debug("222");
 			throw new PokoshoException(e);
 		}
 	}
@@ -118,6 +124,7 @@ public abstract class AbstractBot {
 				return null;
 			}
 			Token maxCostToken = null;
+			Token maxNounCostToken = null; // 最もコストの高い名詞
 			for (Token t : token) {
 				log.debug(t.getSurface() + ":" + t.getCost());
 				if (maxCostToken == null
@@ -125,14 +132,19 @@ public abstract class AbstractBot {
 						&& StringUtils.toPos(t.getPos()) == Pos.Noun)) {
 					maxCostToken = t;
 				}
+				if (maxCostToken != maxNounCostToken && StringUtils.toPos(maxCostToken.getPos()) == Pos.Noun) {
+					log.debug("名詞:" + maxCostToken.getSurface());
+					maxNounCostToken = t;
+				}
 			}
-			log.debug("selected word:" + maxCostToken.getSurface());
+			log.debug("selected word:" + maxCostToken.getSurface() + " noun word:" + maxNounCostToken.getSurface());
+			Token theToken = (maxNounCostToken != null ? maxNounCostToken : maxCostToken);
 			// 最大コストの単語で始まっているか調べて、始まっていたら使う
 			conn = manager.getProvider().getConnection();
 			Word[] word = manager.find(
 					Word.class,
 					Query.select().where(TableInfo.TABLE_WORD_WORD + " = ?",
-							maxCostToken.getSurface()));
+							theToken.getSurface()));
 			if (word == null || word.length == 0) {
 				log.debug("max cost word was not found.");
 				return null;
@@ -192,7 +204,7 @@ public abstract class AbstractBot {
 			log.debug("it's not Japanese");
 			return;
 		}
-		if (!TwitterUtils.isSpamTweet(str)) {
+		if (TwitterUtils.isSpamTweet(str)) {
 			log.debug("spam tweet:" + str);
 			return;
 		}

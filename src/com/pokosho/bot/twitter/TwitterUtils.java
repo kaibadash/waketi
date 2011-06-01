@@ -10,7 +10,7 @@ public class TwitterUtils {
 	private static final Pattern HASHTAG_PATTERN = Pattern.compile("#[a-z0-9_]*",Pattern.CASE_INSENSITIVE);
 	private static final Pattern URL_PATTERN = Pattern.compile("(http://|https://){1}[\\w\\.\\-/:\\#\\?\\=\\&\\;\\%\\~\\+]+", Pattern.CASE_INSENSITIVE);
 	private static final Pattern MENTION_PATTERN = Pattern.compile("@[a-z0-9_:]*", Pattern.CASE_INSENSITIVE);
-	private static final Pattern CONTAIN_JPN_PATTERN = Pattern.compile("@[ぁ-んァ-ヴ一-龠]+", Pattern.CASE_INSENSITIVE);
+	private static final Pattern CONTAIN_JPN_PATTERN = Pattern.compile("[ぁ-んァ-ヴ一-龠]+", Pattern.CASE_INSENSITIVE);
 	private static final Pattern ALNUM_PATTERN = Pattern.compile("[0-9a-zA-Z:\\-]", Pattern.CASE_INSENSITIVE);
 	private static final String FOUR_SQ_URL = "http://4sq.com/";
 	private static final String RT_STR = "RT";
