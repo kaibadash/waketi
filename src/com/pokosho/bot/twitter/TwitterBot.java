@@ -305,11 +305,16 @@ public class TwitterBot extends AbstractBot {
 			System.setProperty("twitter4j.loggerFactory", "twitter4j.internal.logging.NullLoggerFactory");
 
 			TwitterBot b = new TwitterBot(DB_PROP, BOT_PROP);
-			b.cleaning();
-			b.study(null);
-			b.say();
-			//say("ぼく、きみ、あの人、私、あたし、俺、オレはリンゴ");
-			b.reply();
+			if (0 < args.length) {
+				String mode = args[0];
+				if (mode.equals("-c")) {
+					b.cleaning();
+				}
+			} else {
+				b.study(null);
+				b.say();
+				b.reply();
+			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
