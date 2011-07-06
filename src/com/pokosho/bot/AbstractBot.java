@@ -145,7 +145,7 @@ public abstract class AbstractBot {
 					maxNounCostToken = t;
 				}
 			}
-			log.debug("selected word:" + maxCostToken.getSurface() + " noun word:" + maxNounCostToken.getSurface());
+			log.debug("selected word:" + maxCostToken.getSurface() + " noun word:" + (maxNounCostToken != null ? maxNounCostToken.getSurface():"noun not found"));
 			Token theToken = (maxNounCostToken != null ? maxNounCostToken : maxCostToken);
 			// 最大コストの単語で始まっているか調べて、始まっていたら使う
 			conn = manager.getProvider().getConnection();
@@ -197,7 +197,7 @@ public abstract class AbstractBot {
 			throw new PokoshoException(e);
 		} finally {
 			try {
-				conn.close();
+				if (conn != null) conn.close();
 			} catch (SQLException e) {
 				throw new PokoshoException(e);
 			}
@@ -354,6 +354,8 @@ public abstract class AbstractBot {
 	 */
 	private List<Integer> createWordIDList(Chain[] startChain)
 			throws SQLException {
+		int chainCountDown = Integer.parseInt(prop.getProperty("com.pokosho.chain_count_down"));
+		int loopCount = 0;
 		List<Integer> idList = new ArrayList<Integer>();
 		idList.add(startChain[0].getPrefix01());
 		idList.add(startChain[0].getPrefix02());
@@ -364,31 +366,36 @@ public abstract class AbstractBot {
 			if (chain[0].getSuffix() == null) {
 				break;
 			}
+			// 指定回数連鎖したら終端を探しに行く
+			String whereEnd = "";
+			if (loopCount > chainCountDown) {
+				whereEnd = TableInfo.TABLE_CHAIN_SUFFIX + "=null and";
+			}
 			Chain[] nextChain = manager.find(
 					Chain.class,
 					Query.select().where(
+							whereEnd +
 							TableInfo.TABLE_CHAIN_PREFIX01
 									+ "=? order by rand() limit 1",
 							chain[0].getSuffix()));
+			// 終端が見つからなかった場合は、終端を探すのを諦める
+			if (whereEnd.length() == 0 && nextChain == null || nextChain.length == 0) {
+				nextChain = manager.find(
+						Chain.class,
+						Query.select().where(
+								TableInfo.TABLE_CHAIN_PREFIX01
+										+ "=? order by rand() limit 1",
+								chain[0].getSuffix()));
+			}
 			if (nextChain == null || nextChain.length == 0) {
 				log.info("no next chain. please study more...");
 				break;
-			}
-			Word[] posCheck = manager.find(
-					Word.class,
-					Query.select().where(
-							TableInfo.TABLE_WORD_WORD_ID + "=? and "
-									+ TableInfo.TABLE_WORD_WORD_POS_ID + "=?",
-							chain[0].getPrefix01(), Pos.Preposition));
-			if (posCheck != null && 0 < posCheck.length) {
-				chain = manager.find(Chain.class,
-						Query.select().order("rand() limit 1"));
-				continue; // TODO:もっと賢く…
 			}
 			idList.add(nextChain[0].getPrefix01());
 			idList.add(nextChain[0].getPrefix02());
 			log.debug("picked chain id " + nextChain[0].getChain_ID());
 			chain = nextChain;
+			loopCount++;
 		}
 		return idList;
 	}
