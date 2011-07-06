@@ -451,9 +451,9 @@ public abstract class AbstractBot {
 					Query.select().where(TableInfo.TABLE_WORD_WORD_ID + "=?",
 							idList.get(i)));
 			char lastChar = words[0].getWord().charAt(words[0].getWord().length() - 1);
-			// 半角英数の間にスペースを入れる
-			if (result.length() != 0 && TwitterUtils.isAlnum(lastChar) &&
-					TwitterUtils.isAlnum(result.charAt(result.length() - 1))) {
+			// 半角英語の間にスペースを入れる
+			if (result.length() != 0 && TwitterUtils.isAlfabet(lastChar) &&
+					TwitterUtils.isAlfabet(result.charAt(result.length() - 1))) {
 				result.append(" ");
 			}
 			result.append(words[0].getWord());
