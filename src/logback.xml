@@ -36,11 +36,13 @@
 		<!-- 出力するレベルを設定 -->
 		<level value="debug" />
 
-		<!-- アペンダを設定 -->
+		<!-- アペンダを設定
 		<appender-ref ref="FILE" />
-		<!--
 		<appender-ref ref="STDOUT" />
-		 -->
+		-->
+		<appender-ref ref="STDOUT" />
+		<appender-ref ref="FILE" />
+
 	</root>
 
 </configuration>

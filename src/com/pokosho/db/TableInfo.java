@@ -8,4 +8,7 @@ public class TableInfo {
 	public static String TABLE_CHAIN_PREFIX02 = "PREFIX02";
 	public static String TABLE_CHAIN_START = "START";
 	public static String TABLE_CHAIN_SUFFIX = "SUFFIX ";
+	// chat
+	public static String TABLE_CHATUSER_ID = "USER_ID";
+	public static String TABLE_CHATMESSAGE_ID = "MESSAGE_ID";
 }

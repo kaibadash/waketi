@@ -1,7 +1,10 @@
 package com.pokosho.bot;
 
+import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -26,6 +29,7 @@ import com.pokosho.dao.Word;
 import com.pokosho.db.DBUtil;
 import com.pokosho.db.Pos;
 import com.pokosho.db.TableInfo;
+import com.pokosho.util.StrRep;
 import com.pokosho.util.StringUtils;
 
 public abstract class AbstractBot {
@@ -33,10 +37,12 @@ public abstract class AbstractBot {
 	protected static final int CHAIN_COUNT = 3;
 	protected StringTagger tagger;
 	protected static EntityManager manager;
+	protected StrRep strRep;
+	protected Properties prop;
 
 	public AbstractBot(String dbPropPath, String botPropPath)
 			throws PokoshoException {
-		Properties prop = new Properties();
+		prop = new Properties();
 		log.debug("dbPropPath:" + dbPropPath);
 		log.debug("botPropPath:" + botPropPath);
 		try {
@@ -51,14 +57,15 @@ public abstract class AbstractBot {
 			throw new PokoshoException(e1);
 		}
 		System.setProperty("sen.home", prop.getProperty("com.pokosho.sendir"));
+		strRep = new StrRep(prop.getProperty("com.pokosho.repstr"));
 		try {
 			manager = DBUtil.getEntityManager(dbPropPath);
 			tagger = StringTagger.getInstance();
 		} catch (IllegalArgumentException e) {
-			log.debug("111");
+			log.error(e.getMessage());
 			throw new PokoshoException(e);
 		} catch (IOException e) {
-			log.debug("222");
+			log.error(e.getMessage());
 			throw new PokoshoException(e);
 		}
 	}
@@ -95,6 +102,7 @@ public abstract class AbstractBot {
 			LinkedList<Integer> idList = new LinkedList<Integer>(
 					createWordIDList(chain));
 			result = createWordsFromIDList(idList);
+			result = strRep.rep(result);
 		} catch (SQLException e) {
 			throw new PokoshoException(e);
 		} finally {
@@ -180,7 +188,9 @@ public abstract class AbstractBot {
 				// 先頭まで組み立てる
 				idList = createWordIDListEndToStart(idList, chain);
 			}
-			return createWordsFromIDList(idList);
+			String result = createWordsFromIDList(idList);
+			result = strRep.rep(result);
+			return result;
 		} catch (SQLException e) {
 			throw new PokoshoException(e);
 		} catch (IOException e) {
@@ -300,6 +310,40 @@ public abstract class AbstractBot {
 					TableInfo.TABLE_CHAIN_PREFIX02, prefix02), new DBParam(
 					TableInfo.TABLE_CHAIN_SUFFIX, safix), new DBParam(
 					TableInfo.TABLE_CHAIN_START, start));
+		}
+	}
+
+	/**
+	 * ゴミ掃除をする.
+	 */
+	protected void cleaning() throws SQLException, IOException {
+		String cleaningFile = prop.getProperty("com.pokosho.cleaning");
+		File file = null;
+		FileReader filereader = null;
+		BufferedReader br = null;
+		try {
+			file = new File(cleaningFile);
+			filereader = new FileReader(file);
+			br = new BufferedReader(filereader);
+			String line = null;
+			while ((line = br.readLine()) != null) {
+				Word[] words = manager.find(
+						Word.class,
+						Query.select()
+								.where(TableInfo.TABLE_WORD_WORD + " = ?", line));
+				if (0 < words.length) {
+					log.debug("delete word:" + words[0].getWord() + " ID:" + words[0].getWord_ID());
+					manager.delete(
+						manager.find(Chain.class,
+							Query.select().where(TableInfo.TABLE_CHAIN_PREFIX01 + " = ? OR " +
+								TableInfo.TABLE_CHAIN_PREFIX02 + " = ? OR " +
+								TableInfo.TABLE_CHAIN_SUFFIX + " = ? ",
+								words[0].getWord_ID(), words[0].getWord_ID(), words[0].getWord_ID())));
+				}
+			}
+		} finally {
+			if (br != null)	br.close();
+			if (filereader != null) filereader.close();
 		}
 	}
 

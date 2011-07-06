@@ -104,7 +104,7 @@ public class TwitterBot extends AbstractBot {
 		saveLastRead(last.getId(),WORK_LAST_READ_MENTION_FILE);
 		for (Status from : mentionList) {
 			try {
-				if (from.getId() == id) {
+				if (from.getId() <= id) {
 					log.debug("found last mention id:" + id);
 					break;
 				}
@@ -162,7 +162,7 @@ public class TwitterBot extends AbstractBot {
 			log.info("size of homeTimelineList:" + homeTimeLineList.size());
 			for (Status s : homeTimeLineList) {
 				if (!DEBUG) {
-					if (s.getId() == id) {
+					if (s.getId() <= id) {
 						log.info("found last tweet. id:" + id);
 						break;
 					}
@@ -305,8 +305,12 @@ public class TwitterBot extends AbstractBot {
 			System.setProperty("twitter4j.loggerFactory", "twitter4j.internal.logging.NullLoggerFactory");
 
 			TwitterBot b = new TwitterBot(DB_PROP, BOT_PROP);
+
+			b.cleaning();
+
 			b.study(null);
 			b.say();
+			//say("ぼく、きみ、あの人、私、あたし、俺、オレはリンゴ");
 			b.reply();
 		} catch (Exception e) {
 			e.printStackTrace();
