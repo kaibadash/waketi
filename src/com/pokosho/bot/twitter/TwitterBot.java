@@ -21,11 +21,16 @@ import twitter4j.IDs;
 import twitter4j.Paging;
 import twitter4j.ResponseList;
 import twitter4j.Status;
+import twitter4j.StatusUpdate;
 import twitter4j.Twitter;
 import twitter4j.TwitterException;
 import twitter4j.TwitterFactory;
+import twitter4j.TwitterStream;
+import twitter4j.TwitterStreamFactory;
 import twitter4j.User;
-import twitter4j.http.AccessToken;
+import twitter4j.UserStreamAdapter;
+import twitter4j.conf.Configuration;
+import twitter4j.conf.ConfigurationBuilder;
 
 import com.pokosho.PokoshoException;
 import com.pokosho.bot.AbstractBot;
@@ -48,7 +53,7 @@ public class TwitterBot extends AbstractBot {
 	private String consumerSecret;
 	private String accessToken;
 	private String accessTokenSecret;
-	private int selfUser;
+	private long selfUser;
 
 	private static final String KEY_CONSUMER_KEY = "twitter.consumer.key";
 	private static final String KEY_CONSUMER_SECRET = "twitter.consumer.secret";
@@ -59,9 +64,14 @@ public class TwitterBot extends AbstractBot {
 			throws PokoshoException {
 		super(dbPropPath, botPropPath);
 		loadProp(botPropPath);
-		AccessToken token = new AccessToken(accessToken, accessTokenSecret);
-		twitter = new TwitterFactory().getOAuthAuthorizedInstance(consumerKey,
-				consumerSecret, token);
+
+		ConfigurationBuilder builder = new ConfigurationBuilder();
+	    builder.setOAuthConsumerKey( consumerKey );
+	    builder.setOAuthConsumerSecret( consumerSecret );
+	    builder.setOAuthAccessToken( accessToken );
+	    builder.setOAuthAccessTokenSecret( accessTokenSecret );
+	    Configuration conf = builder.build();
+		twitter = new TwitterFactory(conf).getInstance();
 		try {
 			selfUser = twitter.getId();
 		} catch (IllegalStateException e) {
@@ -87,13 +97,26 @@ public class TwitterBot extends AbstractBot {
 		return s;
 	}
 
+	private static final boolean streamMode = true;
 	public void reply() throws PokoshoException {
+		if (streamMode) {
+			replyStream();
+		} else {
+			replySeq();
+		}
+	}
+
+	/**
+	 * 返信.
+	 * @throws PokoshoException
+	 */
+	private void replySeq() throws PokoshoException {
 		String s = null;
 		long id = loadLastRead(WORK_LAST_READ_MENTION_FILE);
 		Paging page = new Paging();
 		page.setCount(STATUS_MAX_COUNT);
 		ResponseList<Status> mentionList;
-		int selfID;
+		long selfID;
 		try {
 			selfID = twitter.getId();
 			mentionList = twitter.getMentions(page);
@@ -126,11 +149,36 @@ public class TwitterBot extends AbstractBot {
 					continue;
 				}
 				log.info("updateStatus:" + s);
-				twitter.updateStatus("@" + from.getUser().getScreenName() + " " + s, from.getId());
+				StatusUpdate us = new StatusUpdate("@" + from.getUser().getScreenName() + " " + s);
+				us.setInReplyToStatusId(from.getId());
+				twitter.updateStatus(us);
 			} catch (TwitterException e) {
 				new PokoshoException(e);
 			}
 		}
+	}
+
+	/**
+	 * 返信(stream).
+	 * @throws PokoshoException
+	 */
+	private void replyStream() throws PokoshoException {
+		ConfigurationBuilder builder = new ConfigurationBuilder();
+	    builder.setOAuthConsumerKey( consumerKey );
+	    builder.setOAuthConsumerSecret( consumerSecret );
+	    builder.setOAuthAccessToken( accessToken );
+	    builder.setOAuthAccessTokenSecret( accessTokenSecret );
+	    Configuration conf = builder.build();
+		TwitterStreamFactory factory = new TwitterStreamFactory(conf);
+	    TwitterStream twitterStream = factory.getInstance();
+	    try {
+			twitterStream.addListener(new MentionEventListener(selfUser));
+		} catch (TwitterException e) {
+			throw new PokoshoException(e);
+		}
+	    // start streaming
+	    log.info("start twitterStream.user() ------------------------------");
+	    twitterStream.user();
 	}
 
 	/**
@@ -141,14 +189,15 @@ public class TwitterBot extends AbstractBot {
 	public void study(String str) throws PokoshoException {
 		IDs frends;
 		IDs follower;
-		log.debug("start study ------------------------------------");
+		log.info("start study ------------------------------------");
 		try {
 			// WORKファイルのタイムスタンプを見て、指定時間経っていたら、フォロー返しを実行
 			File f = new File(WORK_LAST_READ_FILE);
 			if (!f.exists() || System.currentTimeMillis() < f.lastModified() + FOLLOW_INTERVAL_MSEC) {
-				frends = twitter.getFriendsIDs();
-				follower = twitter.getFollowersIDs();
-				List<Integer> notFollowIdList = calcNotFollow(follower, frends);
+				log.debug("selfUser:" + selfUser);
+				frends = twitter.getFriendsIDs(selfUser, 0);
+				follower = twitter.getFollowersIDs(selfUser, 0);
+				List<Long> notFollowIdList = calcNotFollow(follower, frends);
 				doFollow(notFollowIdList);
 			}
 
@@ -181,15 +230,15 @@ public class TwitterBot extends AbstractBot {
 						studyFromLine(msg);
 					}
 				} catch (IOException e) {
-					log.error(e.toString());
+					log.error("io error",e);
 				} catch (SQLException e) {
-					log.error(e.toString());
+					log.error("sql error", e);
 				}
 			}
 		} catch (TwitterException e) {
-			log.error(e.toString());
+			log.error("twitter error", e);
 		}
-		log.debug("end study ------------------------------------");
+		log.info("end study ------------------------------------");
 	}
 
 	private void saveLastRead(long id, String path) {
@@ -226,15 +275,15 @@ public class TwitterBot extends AbstractBot {
 			br = new BufferedReader(filereader);
 			id = Long.valueOf(br.readLine());
 		} catch (IOException e) {
-			log.error(e.toString());
+			log.error("io error",e);
 		} catch (NumberFormatException e) {
-			log.error(e.toString());
+			log.error("number format error",e);
 		} finally {
 			try {
 				if (br != null) br.close();
 				if (filereader != null) filereader.close();
 			} catch (IOException e) {
-				log.error(e.toString());
+				log.error("io error",e);
 			}
 		}
 		return id;
@@ -249,16 +298,16 @@ public class TwitterBot extends AbstractBot {
 			accessToken = prop.getProperty(KEY_ACCESS_TOKEN);
 			accessTokenSecret = prop.getProperty(KEY_ACCESS_TOKEN_SECRET);
 		} catch (FileNotFoundException e) {
-			log.error(e.toString());
+			log.error("file not found error",e);
 			throw new PokoshoException(e);
 		} catch (IOException e) {
-			log.error(e.toString());
+			log.error("io error",e);
 			throw new PokoshoException(e);
 		}
 	}
 
-	private void doFollow(List<Integer> notFollowIdList) {
-		for (Integer userId : notFollowIdList) {
+	private void doFollow(List<Long> notFollowIdList) {
+		for (Long userId : notFollowIdList) {
 			User user = null;
 			try {
 				user = twitter.createFriendship(userId);
@@ -267,26 +316,29 @@ public class TwitterBot extends AbstractBot {
 				}
 				log.info("followed:" + user.getName());
 			} catch (TwitterException e) {
-				log.error(e.toString());
+				log.error("twitter error",e);
 			}
 		}
 	}
 
-	private List<Integer> calcNotFollow(IDs follower, IDs frends) {
-		List<Integer> returnValue = new ArrayList<Integer>();
+	private List<Long> calcNotFollow(IDs follower, IDs frends) {
+		List<Long> returnValue = new ArrayList<Long>();
 		long lastFollow = loadLastRead(WORK_LAST_FOLLOW_FILE);
-		for (int id : follower.getIDs()) {
+		log.debug("follower count:" + follower.getIDs().length + " frends count:" + frends.getIDs().length);
+		for (long id : follower.getIDs()) {
 			if (lastFollow == id) break; // 最後にフォローしたところまで読んだ
 			if (!contains(frends, id)) {
-				returnValue.add(Integer.valueOf(id));
+				returnValue.add(Long.valueOf(id));
 			}
 		}
-		saveLastRead(follower.getIDs()[0], WORK_LAST_FOLLOW_FILE);
+		if (0 < follower.getIDs().length) {
+			saveLastRead(follower.getIDs()[0], WORK_LAST_FOLLOW_FILE);
+		}
 		return returnValue;
 	}
 
-	private boolean contains(IDs frends, int id) {
-		for (int frendId : frends.getIDs()) {
+	private boolean contains(IDs frends, long id) {
+		for (long frendId : frends.getIDs()) {
 			if (frendId == id) {
 				return true;
 			}
@@ -309,14 +361,61 @@ public class TwitterBot extends AbstractBot {
 				String mode = args[0];
 				if (mode.equals("-c")) {
 					b.cleaning();
+				} else if (mode.equals("-s")) {
+					b.reply();
 				}
 			} else {
 				b.study(null);
 				b.say();
-				b.reply();
+				// b.reply(); // streamingで行う -s
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
+			log.error("system error", e);
+		}
+	}
+
+	private class MentionEventListener extends UserStreamAdapter {
+		private long selfUser;
+		private String selfScreenName;
+		public MentionEventListener(long selfUser) throws TwitterException {
+			this.selfUser = selfUser;
+			selfScreenName = twitter.showUser(selfUser).getScreenName();
+		}
+
+		@Override
+		public void onStatus(Status from) {
+			super.onStatus(from);
+			String tweet = from.getText();
+			if (!tweet.contains("@" + selfScreenName)) return;
+			String s = null;
+			log.info("onStatus user:" + from.getUser().getScreenName() + " tw:" + tweet);
+			try {
+				if (from.getUser().getId() == selfUser) return;
+				Status fromfrom = null;
+				if (0 < from.getInReplyToStatusId()) {
+					fromfrom = twitter.showStatus(from.getInReplyToStatusId());
+				}
+				// リプライ元、リプライ先を連結してもっともコストが高い単語を使う
+				s = from.getText();
+				if (fromfrom != null) {
+					s = s +  "。" + fromfrom.getText();
+				}
+				// @xxx を削除
+				s = TwitterUtils.removeMention(s);
+				s = say(s);
+				if (s == null || s.length() == 0) {
+					log.error("no word");
+					return;
+				}
+				log.info("updateStatus:" + s);
+				StatusUpdate us = new StatusUpdate("@" + from.getUser().getScreenName() + " " + s);
+				us.setInReplyToStatusId(from.getId());
+				twitter.updateStatus(us);
+			} catch (TwitterException e) {
+				log.error("twitter error",e);
+			} catch (PokoshoException e) {
+				log.error("system error",e);
+			}
 		}
 	}
 }

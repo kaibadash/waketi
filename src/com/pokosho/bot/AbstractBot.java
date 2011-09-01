@@ -48,12 +48,10 @@ public abstract class AbstractBot {
 		try {
 			prop.load(new FileInputStream(botPropPath));
 		} catch (FileNotFoundException e1) {
-			log.equals(e1);
-			log.debug("FileNotFoundException");
+			log.error("FileNotFoundException", e1);
 			throw new PokoshoException(e1);
 		} catch (IOException e1) {
-			log.equals(e1);
-			log.debug("IOException");
+			log.error("IOException", e1);
 			throw new PokoshoException(e1);
 		}
 		System.setProperty("sen.home", prop.getProperty("com.pokosho.sendir"));
@@ -62,10 +60,10 @@ public abstract class AbstractBot {
 			manager = DBUtil.getEntityManager(dbPropPath);
 			tagger = StringTagger.getInstance();
 		} catch (IllegalArgumentException e) {
-			log.error(e.getMessage());
+			log.error("system error", e);
 			throw new PokoshoException(e);
 		} catch (IOException e) {
-			log.error(e.getMessage());
+			log.error("system error", e);
 			throw new PokoshoException(e);
 		}
 	}
@@ -95,7 +93,7 @@ public abstract class AbstractBot {
 							.where(TableInfo.TABLE_CHAIN_START + " = ?", true)
 							.order("rand() limit 1"));
 			if (chain == null || chain.length == 0) {
-				log.debug("bot knows no words.");
+				log.info("bot knows no words.");
 				return null;
 			}
 			// 終了まで文章を組み立てる
@@ -122,40 +120,57 @@ public abstract class AbstractBot {
 	 *            返信元メッセージ.
 	 * @return 返事.
 	 */
-	public String say(String from) throws PokoshoException {
+	public synchronized String say(String from) throws PokoshoException {
 		Connection conn = null;
 		try {
 			log.debug("reply base:" + from);
 			from = StringUtils.simplizeForReply(from);
+			log.debug("simplizeForReply:" + from);
 			Token[] token = tagger.analyze(from);
 			if (token == null) {
 				return null;
 			}
 			Token maxCostToken = null;
-			Token maxNounCostToken = null; // 最もコストの高い名詞
+			Token maxNounCostToken = null; // 最もコストの低い名詞
 			for (Token t : token) {
-				log.debug(t.getSurface() + ":" + t.getCost());
-				if (maxCostToken == null
-						|| (maxCostToken.getCost() < t.getCost()
-						&& StringUtils.toPos(t.getPos()) == Pos.Noun)) {
-					maxCostToken = t;
-				}
-				if (maxCostToken != maxNounCostToken && StringUtils.toPos(maxCostToken.getPos()) == Pos.Noun) {
-					log.debug("名詞:" + maxCostToken.getSurface());
+				log.debug("surface:" + t.getSurface() + " cost:" + t.getCost() + " pos:" + t.getPos());
+				// 名詞でコストが高い言葉
+				Pos tPos = StringUtils.toPos(t.getPos());
+				if (maxNounCostToken == null || maxNounCostToken.getCost() > t.getCost() && tPos == Pos.Noun) {
 					maxNounCostToken = t;
+					log.debug("selected 名詞:" + maxNounCostToken.getSurface());
+				}
+				// costが高い言葉(名詞を選んでも意味が無いので名詞は除く)
+				if (tPos != Pos.Noun && tPos != Pos.Preposition && tPos != Pos.Conjunction && tPos != Pos.Joshi) {
+					if (maxCostToken == null || maxCostToken.getCost() > t.getCost()) {
+						maxCostToken = t;
+					}
 				}
 			}
-			log.debug("selected word:" + maxCostToken.getSurface() + " noun word:" + (maxNounCostToken != null ? maxNounCostToken.getSurface():"noun not found"));
-			Token theToken = (maxNounCostToken != null ? maxNounCostToken : maxCostToken);
+			log.info("selected max cost word:" + maxCostToken.getSurface() + " selected max cost noun word:" + (maxNounCostToken != null ? maxNounCostToken.getSurface():"noun not found."));
 			// 最大コストの単語で始まっているか調べて、始まっていたら使う
 			conn = manager.getProvider().getConnection();
-			Word[] word = manager.find(
-					Word.class,
-					Query.select().where(TableInfo.TABLE_WORD_WORD + " = ?",
-							theToken.getSurface()));
-			if (word == null || word.length == 0) {
-				log.debug("max cost word was not found.");
-				return null;
+			Word[] word = null;
+			if (maxNounCostToken != null) {
+				word = manager.find(
+						Word.class,
+						Query.select().where(TableInfo.TABLE_WORD_WORD + " = ?",
+								maxNounCostToken.getSurface()));
+				if (word == null || word.length == 0) {
+					log.info("max cost nown word was not found. use maxCostToken");
+					if (maxCostToken != null) {
+						word = manager.find(
+								Word.class,
+								Query.select().where(TableInfo.TABLE_WORD_WORD + " = ?",
+										maxCostToken.getSurface()));
+						if (word == null || word.length == 0) {
+							log.info("no word!");
+
+							return null;
+						}
+					}
+					return null;
+				}
 			}
 			// word found, start creating chain
 			Chain[] chain = manager.find(

@@ -16,6 +16,7 @@ public enum Pos {
 	Conjunction(7), /*接続詞*/
 	Interjection(8), /*感動詞*/
 	Rentai(9), /*連体詞*/
+	Joshi(10), /*助詞*/
 	Other(255) /*記号*/;
 
 	private int intValue;

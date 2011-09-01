@@ -17,6 +17,7 @@ public class StringUtils {
 	private final static String CONJUNCTION = "接続詞";
 	private final static String INTERJECTION = "感動詞";
 	private final static String RENTAI = "連体詞";
+	private final static String JOSHI = "助詞";
 	private final static String UNKNOWN = "未知語"; /*名詞扱い*/
 	//private final static String OTHER = "記号";
 
@@ -30,50 +31,53 @@ public class StringUtils {
 		// URLを削除
 		String res = str.replaceAll("^(https?|ftp)(:\\/\\/[-_.!~*\\'()a-zA-Z0-9;\\/?:\\@&=+\\$,%#]+)", "");
 		res = res.replaceAll("@[a-zA-Z0-9_]+", "");
-		res = res.replaceAll("[「【(（『].*[」】）』]", "");
+		res = res.replaceAll("[「【(（『].*[」】）』¥¥(¥¥)¥¥[¥¥]]", "");
 		res = res.replaceAll("\"", "");
 		return res;
 	}
 
 	public static String simplizeForReply(String str) {
 		String res = StringUtils.simplize(str);
-		res = res.replaceAll("[!！。¥¥-¥¥?]", "");
+		res = res.replaceAll("[¥¥!！¥¥?？¥¥.。¥¥-]", "");
 		return res;
 	}
 
 	public static Pos toPos(String posStr) {
 		String p = posStr.split("-")[0];
 		log.debug("toPos:" + p + " detail:" + posStr);
-		if (p == null || p.length() == 0 || p.equals(UNKNOWN)) {
+		if (p == null || p.length() == 0 || p.startsWith(UNKNOWN)) {
 			/* 未知語は名詞扱い */
 			return Pos.Noun;
 		}
-		if (p.equals(NOUN)) {
+		if (p.startsWith(NOUN)) {
 			return Pos.Noun;
 		}
-		if (p.equals(VERV)) {
-			return Pos.Noun;
+		if (p.startsWith(VERV)) {
+			return Pos.Verv;
 		}
-		if (p.equals(INTERJECTION)) {
+		if (p.startsWith(INTERJECTION)) {
 			return Pos.Interjection;
 		}
-		if (p.equals(ADJECTIVE)) {
+		if (p.startsWith(ADJECTIVE)) {
 			return Pos.Adjective;
 		}
-		if (p.equals(ADVERB)) {
+		if (p.startsWith(ADVERB)) {
 			return Pos.Adverb;
 		}
-		if (p.equals(PRONOUN)) {
+		if (p.startsWith(PRONOUN)) {
 			return Pos.Preposition;
 		}
-		if (p.equals(CONJUNCTION)) {
+		if (p.startsWith(CONJUNCTION)) {
 			return Pos.Conjunction;
 		}
-		if (p.equals(PREPOSITION)) {
+		if (p.startsWith(PREPOSITION)) {
 			return Pos.Preposition;
 		}
-		if (p.equals(RENTAI)) {
+		if (p.startsWith(RENTAI)) {
 			return Pos.Rentai;
+		}
+		if (p.startsWith(JOSHI)) {
+			return Pos.Joshi;
 		}
 		return Pos.Other;
 	}
