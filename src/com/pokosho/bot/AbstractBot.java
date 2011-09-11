@@ -349,16 +349,20 @@ public abstract class AbstractBot {
 						Query.select()
 								.where(TableInfo.TABLE_WORD_WORD + " like '"+ line +"%'"));
 				log.info("search " + TableInfo.TABLE_WORD_WORD + " like '"+ line +"%'");
-				if (0 < words.length) {
-					// TODO:loop
-					log.info("delete word:" + words[0].getWord() + " ID:" + words[0].getWord_ID());
-					manager.delete(
-						manager.find(Chain.class,
-							Query.select().where(TableInfo.TABLE_CHAIN_PREFIX01 + " = ? OR " +
-								TableInfo.TABLE_CHAIN_PREFIX02 + " = ? OR " +
-								TableInfo.TABLE_CHAIN_SUFFIX + " = ? ",
-								words[0].getWord_ID(), words[0].getWord_ID(), words[0].getWord_ID())));
+				// カンマ区切りにする
+				StringBuffer sb = new StringBuffer();
+				for (Word w : words) {
+					sb.append(w.getWord_ID() + ",");
+					log.info("delete word:" + w.getWord() + " ID:" + w.getWord_ID());
 				}
+				if (sb.length() == 0) continue;
+				sb.deleteCharAt(sb.length() - 1); // 末尾の 「,」 を取り除く
+				manager.delete(
+					manager.find(Chain.class,
+						Query.select().where(TableInfo.TABLE_CHAIN_PREFIX01 + " in (?) OR " +
+							TableInfo.TABLE_CHAIN_PREFIX02 + " in (?) OR " +
+							TableInfo.TABLE_CHAIN_SUFFIX + " in (?)",
+							sb.toString(), sb.toString(), sb.toString())));
 			}
 		} finally {
 			if (br != null)	br.close();
