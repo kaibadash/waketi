@@ -147,7 +147,9 @@ public abstract class AbstractBot {
 					}
 				}
 			}
-			log.info("selected max cost word:" + maxCostToken.getSurface() + " selected max cost noun word:" + (maxNounCostToken != null ? maxNounCostToken.getSurface():"noun not found."));
+			log.info("selected max cost word:" +
+					(maxCostToken != null ? maxCostToken.getSurface():"null") +
+					" selected max cost noun word:" + (maxNounCostToken != null ? maxNounCostToken.getSurface():"noun not found."));
 			// 最大コストの単語で始まっているか調べて、始まっていたら使う
 			conn = manager.getProvider().getConnection();
 			Word[] word = null;
@@ -345,9 +347,11 @@ public abstract class AbstractBot {
 				Word[] words = manager.find(
 						Word.class,
 						Query.select()
-								.where(TableInfo.TABLE_WORD_WORD + " = ?", line));
+								.where(TableInfo.TABLE_WORD_WORD + " like '"+ line +"%'"));
+				log.info("search " + TableInfo.TABLE_WORD_WORD + " like '"+ line +"%'");
 				if (0 < words.length) {
-					log.debug("delete word:" + words[0].getWord() + " ID:" + words[0].getWord_ID());
+					// TODO:loop
+					log.info("delete word:" + words[0].getWord() + " ID:" + words[0].getWord_ID());
 					manager.delete(
 						manager.find(Chain.class,
 							Query.select().where(TableInfo.TABLE_CHAIN_PREFIX01 + " = ? OR " +
@@ -384,7 +388,7 @@ public abstract class AbstractBot {
 			// 指定回数連鎖したら終端を探しに行く
 			String whereEnd = "";
 			if (loopCount > chainCountDown) {
-				whereEnd = TableInfo.TABLE_CHAIN_SUFFIX + "=null and";
+				whereEnd = TableInfo.TABLE_CHAIN_SUFFIX + "=null and ";
 			}
 			Chain[] nextChain = manager.find(
 					Chain.class,

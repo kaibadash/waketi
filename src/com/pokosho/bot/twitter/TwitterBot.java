@@ -390,10 +390,17 @@ public class TwitterBot extends AbstractBot {
 			String s = null;
 			log.info("onStatus user:" + from.getUser().getScreenName() + " tw:" + tweet);
 			try {
-				if (from.getUser().getId() == selfUser) return;
+				log.info("start getId");
+				if (from.getUser().getId() == selfUser) {
+					log.info("reply to self. nothing todo");
+					return;
+				}
+				log.info("end getId");
 				Status fromfrom = null;
 				if (0 < from.getInReplyToStatusId()) {
+					log.info("start showStatus");
 					fromfrom = twitter.showStatus(from.getInReplyToStatusId());
+					log.info("end showStatus");
 				}
 				// リプライ元、リプライ先を連結してもっともコストが高い単語を使う
 				s = from.getText();
@@ -402,9 +409,11 @@ public class TwitterBot extends AbstractBot {
 				}
 				// @xxx を削除
 				s = TwitterUtils.removeMention(s);
+				log.info("start say");
 				s = say(s);
+				log.info("end say");
 				if (s == null || s.length() == 0) {
-					log.error("no word");
+					log.info("no word");
 					return;
 				}
 				log.info("updateStatus:" + s);
@@ -415,6 +424,8 @@ public class TwitterBot extends AbstractBot {
 				log.error("twitter error",e);
 			} catch (PokoshoException e) {
 				log.error("system error",e);
+			} catch (Exception e) {
+				log.error("system error(debug)",e);
 			}
 		}
 	}
