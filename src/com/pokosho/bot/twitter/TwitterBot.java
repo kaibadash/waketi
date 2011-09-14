@@ -409,7 +409,10 @@ public class TwitterBot extends AbstractBot {
 				}
 				// @xxx を削除
 				s = TwitterUtils.removeMention(s);
-				log.info("start say");
+				s = TwitterUtils.removeRTString(s);
+				s = TwitterUtils.removeUrl(s);
+				s = TwitterUtils.removeHashTags(s);
+				log.info("start say against:" + s);
 				s = say(s);
 				log.info("end say");
 				if (s == null || s.length() == 0) {
