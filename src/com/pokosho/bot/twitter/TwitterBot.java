@@ -13,6 +13,8 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,7 +47,7 @@ public class TwitterBot extends AbstractBot {
 	private static final String WORK_LAST_READ_FILE = "waketi_last_read.txt";
 	private static final String WORK_LAST_READ_MENTION_FILE = "waketi_last_read_mention.txt";
 	private static final String WORK_LAST_FOLLOW_FILE = "waketi_last_follow.txt";
-	private static final int FOLLOW_INTERVAL_MSEC = 60 * 60 * 24 * 1000; // フォロー返しの間隔
+	private static final int FOLLOW_INTERVAL_MSEC = 60 * 60 * 3 * 1000; // フォロー返しの間隔
 	private static final int STATUS_MAX_COUNT = 200;
 
 	private Twitter twitter;
@@ -183,21 +185,21 @@ public class TwitterBot extends AbstractBot {
 
 	/**
 	 * HomeTimeLineから学習する.
-	 * TODO:パラメータクラスをつくって、リストを指定できるようにする
 	 */
 	@Override
 	public void study(String str) throws PokoshoException {
-		IDs frends;
+		IDs friends;
 		IDs follower;
 		log.info("start study ------------------------------------");
 		try {
 			// WORKファイルのタイムスタンプを見て、指定時間経っていたら、フォロー返しを実行
-			File f = new File(WORK_LAST_READ_FILE);
-			if (!f.exists() || System.currentTimeMillis() < f.lastModified() + FOLLOW_INTERVAL_MSEC) {
-				log.debug("selfUser:" + selfUser);
-				frends = twitter.getFriendsIDs(selfUser, 0);
-				follower = twitter.getFollowersIDs(selfUser, 0);
-				List<Long> notFollowIdList = calcNotFollow(follower, frends);
+			File f = new File(WORK_LAST_FOLLOW_FILE);
+			long cTime = System.currentTimeMillis();
+			log.info("selfUser:" + selfUser + " currentTimeMillis:" + cTime + " lastModified+FOLLOW_INTERVAL_MSEC:" + (f.lastModified()+FOLLOW_INTERVAL_MSEC));
+			if (!f.exists() || f.lastModified() + FOLLOW_INTERVAL_MSEC < cTime) {
+				friends = twitter.getFriendsIDs(selfUser, -1);
+				follower = twitter.getFollowersIDs(selfUser, -1);
+				List<Long> notFollowIdList = calcNotFollow(follower, friends);
 				doFollow(notFollowIdList);
 			}
 
@@ -209,6 +211,7 @@ public class TwitterBot extends AbstractBot {
 			Status last = homeTimeLineList.get(0);
 			saveLastRead(last.getId(),WORK_LAST_READ_FILE);
 			log.info("size of homeTimelineList:" + homeTimeLineList.size());
+			Pattern endsWithNumPattern = Pattern.compile(".*[0-9]+$",Pattern.CASE_INSENSITIVE);
 			for (Status s : homeTimeLineList) {
 				if (!DEBUG) {
 					if (s.getId() <= id) {
@@ -228,6 +231,11 @@ public class TwitterBot extends AbstractBot {
 					// 「。」で切れたところで文章の終わりとする
 					for (String msg : splited) {
 						studyFromLine(msg);
+						// 数字で終わるtweetは誰が教えているのか？
+						Matcher matcher = endsWithNumPattern.matcher(msg);
+						if (matcher.matches()) {
+							log.info("found endswith number tweet:" + s.getText() + " tweetID:" + s.getId());
+						}
 					}
 				} catch (IOException e) {
 					log.error("io error",e);
@@ -319,26 +327,27 @@ public class TwitterBot extends AbstractBot {
 				log.error("twitter error",e);
 			}
 		}
+		if (0 < notFollowIdList.size()) {
+			saveLastRead(notFollowIdList.get(notFollowIdList.size() - 1), WORK_LAST_FOLLOW_FILE);
+		}
 	}
 
-	private List<Long> calcNotFollow(IDs follower, IDs frends) {
+	private List<Long> calcNotFollow(IDs follower, IDs friends) {
 		List<Long> returnValue = new ArrayList<Long>();
 		long lastFollow = loadLastRead(WORK_LAST_FOLLOW_FILE);
-		log.debug("follower count:" + follower.getIDs().length + " frends count:" + frends.getIDs().length);
+		log.info("follower count:" + follower.getIDs().length + " friends count:" + friends.getIDs().length);
 		for (long id : follower.getIDs()) {
 			if (lastFollow == id) break; // 最後にフォローしたところまで読んだ
-			if (!contains(frends, id)) {
+			if (!contains(friends, id)) {
+				log.info("follow user id:" + id);
 				returnValue.add(Long.valueOf(id));
 			}
-		}
-		if (0 < follower.getIDs().length) {
-			saveLastRead(follower.getIDs()[0], WORK_LAST_FOLLOW_FILE);
 		}
 		return returnValue;
 	}
 
-	private boolean contains(IDs frends, long id) {
-		for (long frendId : frends.getIDs()) {
+	private boolean contains(IDs friends, long id) {
+		for (long frendId : friends.getIDs()) {
 			if (frendId == id) {
 				return true;
 			}
