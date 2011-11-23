@@ -9,8 +9,10 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 import net.java.ao.DBParam;
@@ -130,49 +132,76 @@ public abstract class AbstractBot {
 			if (token == null) {
 				return null;
 			}
-			Token maxCostToken = null;
-			Token maxNounCostToken = null; // 最もコストの低い名詞
+			Token minCostToken = null;
+			Token minNounCostToken = null; // 最もコストの低い(珍しい)名詞
+			Token maxNounCountToken = null; // 最もカウントが多い名詞
+			Map<String, Integer> tokenCount = new HashMap<String, Integer>(); // 頻出単語
+			int maxCount = 0;
 			for (Token t : token) {
 				log.debug("surface:" + t.getSurface() + " cost:" + t.getCost() + " pos:" + t.getPos());
 				// 名詞でコストが高い言葉
 				Pos tPos = StringUtils.toPos(t.getPos());
-				if (maxNounCostToken == null || maxNounCostToken.getCost() > t.getCost() && tPos == Pos.Noun) {
-					maxNounCostToken = t;
-					log.debug("selected 名詞:" + maxNounCostToken.getSurface());
+				if (tPos == Pos.Noun) {
+					if (minNounCostToken == null || t.getCost() < minNounCostToken.getCost()) {
+						minNounCostToken = t;
+						log.debug("selected 名詞:" + minNounCostToken.getSurface());
+					}
+					// 出現回数のカウント
+					if(!tokenCount.containsKey(t.getSurface())) {
+						tokenCount.put(t.getSurface(), 1);
+					} else {
+						int c = tokenCount.get(t.getSurface()) + 1;
+						if (maxCount < c) {
+							maxCount = c;
+							tokenCount.put(t.getSurface(), c);
+							maxNounCountToken = t;
+						}
+					}
 				}
 				// costが高い言葉(名詞を選んでも意味が無いので名詞は除く)
 				if (tPos != Pos.Noun && tPos != Pos.Preposition && tPos != Pos.Conjunction && tPos != Pos.Joshi) {
-					if (maxCostToken == null || maxCostToken.getCost() > t.getCost()) {
-						maxCostToken = t;
+					if (minCostToken == null || minCostToken.getCost() > t.getCost()) {
+						minCostToken = t;
 					}
 				}
 			}
+			// コストが低い単語
 			log.info("selected max cost word:" +
-					(maxCostToken != null ? maxCostToken.getSurface():"null") +
-					" selected max cost noun word:" + (maxNounCostToken != null ? maxNounCostToken.getSurface():"noun not found."));
+					(minCostToken != null ? minCostToken.getSurface():"null") +
+					" selected max cost noun word:" + (minNounCostToken != null ? minNounCostToken.getSurface():"noun not found.") +
+					" max count:" + (maxNounCountToken != null ? maxNounCountToken.getSurface() : "null"));
+			// 使用するtokenの決定
+			Token targetToken = null;
+			if (1 < maxCount) {
+				targetToken = maxNounCountToken;
+			} else if (minNounCostToken != null) {
+				targetToken = minNounCostToken;
+			} else if (minCostToken != null) {
+				targetToken = minCostToken;
+			} else {
+				return null;
+			}
+
 			// 最大コストの単語で始まっているか調べて、始まっていたら使う
 			conn = manager.getProvider().getConnection();
 			Word[] word = null;
-			if (maxNounCostToken != null) {
-				word = manager.find(
-						Word.class,
-						Query.select().where(TableInfo.TABLE_WORD_WORD + " = ?",
-								maxNounCostToken.getSurface()));
-				if (word == null || word.length == 0) {
-					log.info("max cost nown word was not found. use maxCostToken");
-					if (maxCostToken != null) {
-						word = manager.find(
-								Word.class,
-								Query.select().where(TableInfo.TABLE_WORD_WORD + " = ?",
-										maxCostToken.getSurface()));
-						if (word == null || word.length == 0) {
-							log.info("no word!");
-
-							return null;
-						}
+			word = manager.find(
+					Word.class,
+					Query.select().where(TableInfo.TABLE_WORD_WORD + " = ?",
+							targetToken.getSurface()));
+			if (word == null || word.length == 0) {
+				log.info("max cost nown word was not found. use maxCostToken");
+				if (minCostToken != null) {
+					word = manager.find(
+							Word.class,
+							Query.select().where(TableInfo.TABLE_WORD_WORD + " = ?",
+									targetToken.getSurface()));
+					if (word == null || word.length == 0) {
+						log.info("no word!");
+						return null;
 					}
-					return null;
 				}
+				return null;
 			}
 			// word found, start creating chain
 			Chain[] chain = manager.find(
@@ -221,24 +250,25 @@ public abstract class AbstractBot {
 		}
 	}
 
-	protected void studyFromLine(String str) throws IOException, SQLException {
+	protected Token[] studyFromLine(String str) throws IOException,
+			SQLException {
 		log.info("studyFromLine:" + str);
 		// スパム判定
 		if (str == null || str.length() < 0) {
-			return;
+			return null;
 		}
 		if (!TwitterUtils.containsJPN(str)) {
 			log.debug("it's not Japanese");
-			return;
+			return null;
 		}
 		if (TwitterUtils.isSpamTweet(str)) {
 			log.debug("spam tweet:" + str);
-			return;
+			return null;
 		}
 		str = StringUtils.simplize(str);
 		Token[] token = tagger.analyze(str);
 		if (token == null) {
-			return;
+			return null;
 		}
 		Integer[] chainTmp = new Integer[CHAIN_COUNT];
 		for (int i = 0; i < token.length; i++) {
@@ -293,6 +323,7 @@ public abstract class AbstractBot {
 		}
 		// EOS
 		createChain(chainTmp[1], chainTmp[2], null, false);
+		return token;
 	}
 
 	protected void createChain(final Integer prefix01, final Integer prefix02,
@@ -346,27 +377,36 @@ public abstract class AbstractBot {
 			while ((line = br.readLine()) != null) {
 				Word[] words = manager.find(
 						Word.class,
-						Query.select()
-								.where(TableInfo.TABLE_WORD_WORD + " like '"+ line +"%'"));
-				log.info("search " + TableInfo.TABLE_WORD_WORD + " like '"+ line +"%'");
+						Query.select().where(
+								TableInfo.TABLE_WORD_WORD + " like '" + line
+										+ "%'"));
+				log.info("search " + TableInfo.TABLE_WORD_WORD + " like '"
+						+ line + "%'");
 				// カンマ区切りにする
 				StringBuffer sb = new StringBuffer();
 				for (Word w : words) {
 					sb.append(w.getWord_ID() + ",");
-					log.info("delete word:" + w.getWord() + " ID:" + w.getWord_ID());
+					log.info("delete word:" + w.getWord() + " ID:"
+							+ w.getWord_ID());
 				}
-				if (sb.length() == 0) continue;
+				if (sb.length() == 0)
+					continue;
 				sb.deleteCharAt(sb.length() - 1); // 末尾の 「,」 を取り除く
-				manager.delete(
-					manager.find(Chain.class,
-						Query.select().where(TableInfo.TABLE_CHAIN_PREFIX01 + " in (?) OR " +
-							TableInfo.TABLE_CHAIN_PREFIX02 + " in (?) OR " +
-							TableInfo.TABLE_CHAIN_SUFFIX + " in (?)",
-							sb.toString(), sb.toString(), sb.toString())));
+				manager.delete(manager.find(
+						Chain.class,
+						Query.select().where(
+								TableInfo.TABLE_CHAIN_PREFIX01 + " in (?) OR "
+										+ TableInfo.TABLE_CHAIN_PREFIX02
+										+ " in (?) OR "
+										+ TableInfo.TABLE_CHAIN_SUFFIX
+										+ " in (?)", sb.toString(),
+								sb.toString(), sb.toString())));
 			}
 		} finally {
-			if (br != null)	br.close();
-			if (filereader != null) filereader.close();
+			if (br != null)
+				br.close();
+			if (filereader != null)
+				filereader.close();
 		}
 	}
 
@@ -377,7 +417,8 @@ public abstract class AbstractBot {
 	 */
 	private List<Integer> createWordIDList(Chain[] startChain)
 			throws SQLException {
-		int chainCountDown = Integer.parseInt(prop.getProperty("com.pokosho.chain_count_down"));
+		int chainCountDown = Integer.parseInt(prop
+				.getProperty("com.pokosho.chain_count_down"));
 		int loopCount = 0;
 		List<Integer> idList = new ArrayList<Integer>();
 		idList.add(startChain[0].getPrefix01());
@@ -397,12 +438,12 @@ public abstract class AbstractBot {
 			Chain[] nextChain = manager.find(
 					Chain.class,
 					Query.select().where(
-							whereEnd +
-							TableInfo.TABLE_CHAIN_PREFIX01
+							whereEnd + TableInfo.TABLE_CHAIN_PREFIX01
 									+ "=? order by rand() limit 1",
 							chain[0].getSuffix()));
 			// 終端が見つからなかった場合は、終端を探すのを諦める
-			if (whereEnd.length() == 0 && nextChain == null || nextChain.length == 0) {
+			if (whereEnd.length() == 0 && nextChain == null
+					|| nextChain.length == 0) {
 				nextChain = manager.find(
 						Chain.class,
 						Query.select().where(
@@ -480,10 +521,13 @@ public abstract class AbstractBot {
 					Word.class,
 					Query.select().where(TableInfo.TABLE_WORD_WORD_ID + "=?",
 							idList.get(i)));
-			char lastChar = words[0].getWord().charAt(words[0].getWord().length() - 1);
+			char lastChar = words[0].getWord().charAt(
+					words[0].getWord().length() - 1);
 			// 半角英語の間にスペースを入れる
-			if (result.length() != 0 && TwitterUtils.isAlfabet(lastChar) &&
-					TwitterUtils.isAlfabet(result.charAt(result.length() - 1))) {
+			if (result.length() != 0
+					&& TwitterUtils.isAlfabet(lastChar)
+					&& TwitterUtils
+							.isAlfabet(result.charAt(result.length() - 1))) {
 				result.append(" ");
 			}
 			result.append(words[0].getWord());

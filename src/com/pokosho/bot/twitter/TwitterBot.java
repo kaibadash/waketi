@@ -16,6 +16,8 @@ import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import net.java.sen.Token;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -230,7 +232,10 @@ public class TwitterBot extends AbstractBot {
 					String[] splited = tweet.split("。");
 					// 「。」で切れたところで文章の終わりとする
 					for (String msg : splited) {
-						studyFromLine(msg);
+						Token[] token = studyFromLine(msg);
+						if (token != null) {
+							// TODO:count
+						}
 						// 数字で終わるtweetは誰が教えているのか？
 						Matcher matcher = endsWithNumPattern.matcher(msg);
 						if (matcher.matches()) {
