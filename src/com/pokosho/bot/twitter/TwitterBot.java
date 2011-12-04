@@ -9,6 +9,7 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -16,14 +17,18 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import net.arnx.jsonic.JSON;
+import net.java.ao.DBParam;
+import net.java.ao.Query;
 import net.java.sen.Token;
 
 import org.slf4j.Logger;
@@ -46,7 +51,9 @@ import twitter4j.conf.ConfigurationBuilder;
 
 import com.pokosho.PokoshoException;
 import com.pokosho.bot.AbstractBot;
+import com.pokosho.dao.Reply;
 import com.pokosho.db.Pos;
+import com.pokosho.db.TableInfo;
 import com.pokosho.util.StringUtils;
 
 public class TwitterBot extends AbstractBot {
@@ -60,6 +67,14 @@ public class TwitterBot extends AbstractBot {
 	private static final String WORK_LAST_FOLLOW_FILE = "waketi_last_follow.txt";
 	private static final int FOLLOW_INTERVAL_MSEC = 60 * 60 * 3 * 1000; // フォロー返しの間隔
 	private static final int STATUS_MAX_COUNT = 200;
+	private static Set<String> NOT_TREND;
+	private int maxReplyCountPerHour = 10;
+	static {
+		NOT_TREND = new HashSet<String>();
+		NOT_TREND.add("の");
+		NOT_TREND.add("を");
+		NOT_TREND.add("こと");
+	}
 
 	private Twitter twitter;
 	private String consumerKey;
@@ -67,6 +82,7 @@ public class TwitterBot extends AbstractBot {
 	private String accessToken;
 	private String accessTokenSecret;
 	private String trendPath;
+	private String notTreacherPath;
 	private long selfUser;
 
 	private static final String KEY_CONSUMER_KEY = "twitter.consumer.key";
@@ -74,6 +90,8 @@ public class TwitterBot extends AbstractBot {
 	private static final String KEY_ACCESS_TOKEN = "twitter.access.token";
 	private static final String KEY_ACCESS_TOKEN_SECRET = "twitter.access.secret";
 	private static final String KEY_TREND_PATH = "com.pokosho.trends";
+	private static final String KEY_NOT_TEACHER_PATH = "com.pokosho.not_teacher";
+	private static final String KEY_MAX_REPLY_COUNT = "com.pokosho.max_reply_count";
 
 	public TwitterBot(String dbPropPath, String botPropPath)
 			throws PokoshoException {
@@ -235,12 +253,18 @@ public class TwitterBot extends AbstractBot {
 			log.info("size of homeTimelineList:" + homeTimeLineList.size());
 			Pattern endsWithNumPattern = Pattern.compile(".*[0-9]+$",
 					Pattern.CASE_INSENSITIVE);
+			Set<Long> notTeachers = TwitterUtils
+					.getNotTeachers(notTreacherPath);
 			for (Status s : homeTimeLineList) {
 				if (!DEBUG) {
 					if (s.getId() <= id) {
 						log.info("found last tweet. id:" + id);
 						break;
 					}
+				}
+				if (notTeachers.contains(s.getUser().getId())) {
+					log.debug("not teacher:" + s.getUser().getId());
+					continue;
 				}
 				try {
 					if (s.getUser().getId() == selfUser)
@@ -259,10 +283,16 @@ public class TwitterBot extends AbstractBot {
 						Token[] token = studyFromLine(msg);
 						if (token != null && 0 < token.length) {
 							for (Token t : token) {
-								if (StringUtils.toPos(t.getPos()) == Pos.Noun) {
+								if (StringUtils.toPos(t.getPos()) == Pos.Noun
+										&& TwitterUtils.containsJPN(t
+												.getSurface())
+										&& !NOT_TREND.contains(t.getSurface())
+										&& 1 < t.getSurface().length()) {
 									int count = 0;
-									if (trendCountMap.containsKey(t.getSurface())) {
-										count = trendCountMap.get(t.getSurface());
+									if (trendCountMap.containsKey(t
+											.getSurface())) {
+										count = trendCountMap.get(t
+												.getSurface());
 									}
 									count++;
 									trendCountMap.put(t.getSurface(), count);
@@ -352,6 +382,9 @@ public class TwitterBot extends AbstractBot {
 			accessToken = prop.getProperty(KEY_ACCESS_TOKEN);
 			accessTokenSecret = prop.getProperty(KEY_ACCESS_TOKEN_SECRET);
 			trendPath = prop.getProperty(KEY_TREND_PATH);
+			notTreacherPath = prop.getProperty(KEY_NOT_TEACHER_PATH);
+			maxReplyCountPerHour = Integer.parseInt(prop
+					.getProperty(KEY_MAX_REPLY_COUNT));
 		} catch (FileNotFoundException e) {
 			log.error("file not found error", e);
 			throw new PokoshoException(e);
@@ -409,6 +442,7 @@ public class TwitterBot extends AbstractBot {
 
 	/**
 	 * トレンドを作成.
+	 *
 	 * @param trendCountMap
 	 */
 	private void createTrend(Map<String, Integer> trendCountMap) {
@@ -429,7 +463,8 @@ public class TwitterBot extends AbstractBot {
 		for (int i = 0; i < TREND_COUNT_MAX && i < entries.size(); i++) {
 			Entry<String, Integer> entry = entries.get(i);
 			trends.addTrend(dateStr, entry.getKey(), null, null, null);
-			log.debug("trend rank " + i + ":" + entry.getKey() + "(" + entry.getValue());
+			log.debug("trend rank " + i + ":" + entry.getKey() + "("
+					+ entry.getValue());
 		}
 		String json = JSON.encode(trends);
 		log.debug("trend json:" + json);
@@ -492,11 +527,41 @@ public class TwitterBot extends AbstractBot {
 		public void onStatus(Status from) {
 			super.onStatus(from);
 			String tweet = from.getText();
-			if (!tweet.contains("@" + selfScreenName))
-				return;
 			String s = null;
 			log.info("onStatus user:" + from.getUser().getScreenName() + " tw:"
 					+ tweet);
+			if (!tweet.contains("@" + selfScreenName)) {
+				return;
+			}
+			// reply超過チェック
+			Connection conn = null;
+			try {
+				conn = manager.getProvider().getConnection();
+				// ユーザの一時間以内のreplyを取得
+				Reply[] reply = manager.find(
+						Reply.class,
+						Query.select().where(
+								TableInfo.TABLE_REPLY_USER_ID + " = ? and "
+										+ TableInfo.TABLE_REPLY_TIME + " > ?",
+								from.getUser().getId(),
+								(int) (System.currentTimeMillis() / 1000)
+										- (60 * 60)));
+				if (reply != null && maxReplyCountPerHour < reply.length) {
+					log.debug("user:" + from.getUser().getScreenName()
+							+ " sent reply over " + maxReplyCountPerHour);
+					return;
+				}
+			} catch (SQLException e) {
+				log.error("sql error", e);
+				return;
+			} finally {
+				try {
+					conn.close();
+				} catch (SQLException e) {
+					log.error("close error", e);
+					return;
+				}
+			}
 			try {
 				log.info("start getId");
 				if (from.getUser().getId() == selfUser) {
@@ -538,6 +603,21 @@ public class TwitterBot extends AbstractBot {
 				log.error("system error", e);
 			} catch (Exception e) {
 				log.error("system error(debug)", e);
+			}
+			// insert reply
+			try {
+				manager.create(
+						Reply.class,
+						new DBParam(TableInfo.TABLE_REPLY_TWEET_ID, from
+								.getId()),
+						new DBParam(TableInfo.TABLE_REPLY_TWEET_ID, from
+								.getId()),
+						new DBParam(TableInfo.TABLE_REPLY_USER_ID, from
+								.getUser().getId()),
+						new DBParam(TableInfo.TABLE_REPLY_TIME, (int) (System
+								.currentTimeMillis() / 1000)));
+			} catch (SQLException e) {
+				log.error("insert reply error", e);
 			}
 		}
 	}

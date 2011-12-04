@@ -9,7 +9,7 @@ import net.arnx.jsonic.JSON;
 
 public class Trend {
 	private LinkedHashMap<String, ArrayList<ATrend>> trends;
-	private long asOf;
+	private long as_of;
 
 	public Trend() {
 		trends = new LinkedHashMap<String, ArrayList<ATrend>>();
@@ -23,12 +23,12 @@ public class Trend {
 		this.trends = trends;
 	}
 
-	public long getAsOf() {
-		return asOf;
+	public long getAs_of() {
+		return as_of;
 	}
 
-	public void setAsOf(long asOf) {
-		this.asOf = asOf;
+	public void setAs_of(long asOf) {
+		this.as_of = asOf;
 	}
 
 	public void addTrend(String key, String name, String events, String promotedContent, String query) {
@@ -41,7 +41,7 @@ public class Trend {
 	public class ATrend {
 		private String name;
 		private String events;
-		private String promotedContent;
+		private String promoted_content;
 		private String query;
 
 		public ATrend() {
@@ -51,7 +51,7 @@ public class Trend {
 		public ATrend(String name, String events, String promotedContent, String query) {
 			this.name = name;
 			this.events = events;
-			this.promotedContent = promotedContent;
+			this.promoted_content = promotedContent;
 			this.query = query;
 		}
 
@@ -67,11 +67,11 @@ public class Trend {
 		public void setEvents(String events) {
 			this.events = events;
 		}
-		public String getPromotedContent() {
-			return promotedContent;
+		public String getPromoted_content() {
+			return promoted_content;
 		}
-		public void setPromotedContent(String promotedContent) {
-			this.promotedContent = promotedContent;
+		public void setPromoted_content(String promotedContent) {
+			this.promoted_content = promotedContent;
 		}
 		public String getQuery() {
 			return query;
@@ -94,10 +94,10 @@ public class Trend {
 				System.out.println("name:" + t.getName());
 			}
 		}
-		System.out.println("asof:" + trend.getAsOf());
+		System.out.println("asof:" + trend.getAs_of());
 		// encode
 		Trend trend2 = new Trend();
-		trend2.setAsOf(System.currentTimeMillis());
+		trend2.setAs_of(System.currentTimeMillis());
 		trend2.addTrend("20111029", "hoge", "hoge", "hoge", "hoge");
 		trend2.addTrend("20111029", "muga", "muga", "muga", "muga");
 		trend2.addTrend("20111029", "uryy", "uryy", "uryy", "uryy");
