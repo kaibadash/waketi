@@ -21,9 +21,10 @@
 	<!-- ターゲットdirectoryに依存しているため、
        ターゲットdirectoryを先に実行 -->
 	<target name="compile" depends="directory">
-		<javac srcdir="${source}"
+		<javac encoding="utf-8" srcdir="${source}"
         	destdir="${compile}"
         	excludes="build.xml"
+			includes="logback.xml"
 			classpathref="classpath" />
 	</target>
 

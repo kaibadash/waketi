@@ -69,6 +69,7 @@ public class TwitterBot extends AbstractBot {
 	private static final int STATUS_MAX_COUNT = 200;
 	private static Set<String> NOT_TREND;
 	private int maxReplyCountPerHour = 10;
+	private int maxReplyIntervalSec = 60 * 60;
 	static {
 		NOT_TREND = new HashSet<String>();
 		NOT_TREND.add("の");
@@ -92,6 +93,7 @@ public class TwitterBot extends AbstractBot {
 	private static final String KEY_TREND_PATH = "com.pokosho.trends";
 	private static final String KEY_NOT_TEACHER_PATH = "com.pokosho.not_teacher";
 	private static final String KEY_MAX_REPLY_COUNT = "com.pokosho.max_reply_count";
+	private static final String KEY_REPLY_INTERVAL_MIN = "com.pokosho.max_reply_interval_sec";
 
 	public TwitterBot(String dbPropPath, String botPropPath)
 			throws PokoshoException {
@@ -385,6 +387,8 @@ public class TwitterBot extends AbstractBot {
 			notTreacherPath = prop.getProperty(KEY_NOT_TEACHER_PATH);
 			maxReplyCountPerHour = Integer.parseInt(prop
 					.getProperty(KEY_MAX_REPLY_COUNT));
+			maxReplyIntervalSec = Integer.parseInt(prop
+					.getProperty(KEY_REPLY_INTERVAL_MIN));
 		} catch (FileNotFoundException e) {
 			log.error("file not found error", e);
 			throw new PokoshoException(e);
@@ -543,13 +547,15 @@ public class TwitterBot extends AbstractBot {
 						Query.select().where(
 								TableInfo.TABLE_REPLY_USER_ID + " = ? and "
 										+ TableInfo.TABLE_REPLY_TIME + " > ?",
-								from.getUser().getId(),
-								(int) (System.currentTimeMillis() / 1000)
-										- (60 * 60)));
-				if (reply != null && maxReplyCountPerHour < reply.length) {
-					log.debug("user:" + from.getUser().getScreenName()
-							+ " sent reply over " + maxReplyCountPerHour);
-					return;
+								from.getUser().getId(), System.currentTimeMillis() / 1000 - maxReplyIntervalSec
+								));
+				if (reply != null) {
+					log.debug("reply count:" + reply.length);
+					if (reply != null && maxReplyCountPerHour < reply.length) {
+						log.debug("user:" + from.getUser().getScreenName()
+								+ " sent reply over " + maxReplyCountPerHour);
+						return;
+					}
 				}
 			} catch (SQLException e) {
 				log.error("sql error", e);
