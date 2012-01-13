@@ -68,8 +68,11 @@ public class TwitterBot extends AbstractBot {
 	private static final int FOLLOW_INTERVAL_MSEC = 60 * 60 * 3 * 1000; // フォロー返しの間隔
 	private static final int STATUS_MAX_COUNT = 200;
 	private static Set<String> NOT_TREND;
+	private static Set<String> spamWords;
 	private int maxReplyCountPerHour = 10;
 	private int maxReplyIntervalSec = 60 * 60;
+	private static final int MIN_TWEET_FOR_FOLLOW = 100;
+	private static final String SPAM_USER_LOG_LABEL = "spam user:";
 	static {
 		NOT_TREND = new HashSet<String>();
 		NOT_TREND.add("の");
@@ -84,6 +87,7 @@ public class TwitterBot extends AbstractBot {
 	private String accessTokenSecret;
 	private String trendPath;
 	private String notTreacherPath;
+	private String spamWordsPath;
 	private long selfUser;
 
 	private static final String KEY_CONSUMER_KEY = "twitter.consumer.key";
@@ -94,6 +98,7 @@ public class TwitterBot extends AbstractBot {
 	private static final String KEY_NOT_TEACHER_PATH = "com.pokosho.not_teacher";
 	private static final String KEY_MAX_REPLY_COUNT = "com.pokosho.max_reply_count";
 	private static final String KEY_REPLY_INTERVAL_MIN = "com.pokosho.max_reply_interval_sec";
+	private static final String KEY_SPAM_WORDS = "com.pokosho.spamwords";
 
 	public TwitterBot(String dbPropPath, String botPropPath)
 			throws PokoshoException {
@@ -234,6 +239,7 @@ public class TwitterBot extends AbstractBot {
 			// WORKファイルのタイムスタンプを見て、指定時間経っていたら、フォロー返しを実行
 			File f = new File(WORK_LAST_FOLLOW_FILE);
 			long cTime = System.currentTimeMillis();
+			spamWords = TwitterUtils.getStringSet(spamWordsPath);
 			log.info("selfUser:" + selfUser + " currentTimeMillis:" + cTime
 					+ " lastModified+FOLLOW_INTERVAL_MSEC:"
 					+ (f.lastModified() + FOLLOW_INTERVAL_MSEC));
@@ -385,6 +391,8 @@ public class TwitterBot extends AbstractBot {
 			accessTokenSecret = prop.getProperty(KEY_ACCESS_TOKEN_SECRET);
 			trendPath = prop.getProperty(KEY_TREND_PATH);
 			notTreacherPath = prop.getProperty(KEY_NOT_TEACHER_PATH);
+			spamWordsPath = prop.getProperty(KEY_SPAM_WORDS);
+
 			maxReplyCountPerHour = Integer.parseInt(prop
 					.getProperty(KEY_MAX_REPLY_COUNT));
 			maxReplyIntervalSec = Integer.parseInt(prop
@@ -402,6 +410,10 @@ public class TwitterBot extends AbstractBot {
 		for (Long userId : notFollowIdList) {
 			User user = null;
 			try {
+				user = twitter.showUser(userId);
+				if (isSpamUser(user)) {
+					continue;
+				}
 				user = twitter.createFriendship(userId);
 				if (user == null) {
 					log.error("failed to follow：" + userId);
@@ -415,6 +427,34 @@ public class TwitterBot extends AbstractBot {
 			saveLastRead(notFollowIdList.get(notFollowIdList.size() - 1),
 					WORK_LAST_FOLLOW_FILE);
 		}
+	}
+
+	/**
+	 * スパム判定.
+	 * @param user
+	 * @return
+	 */
+	private boolean isSpamUser(User user) {
+		String prof = user.getDescription();
+		if (prof.length() == 0) {
+			log.info(SPAM_USER_LOG_LABEL + user.getScreenName() + " " + user.getId() + " has not profile.");
+			return true;
+		}
+		if (!TwitterUtils.containsJPN(prof)) {
+			log.info(SPAM_USER_LOG_LABEL + user.getScreenName() + " " + user.getId() + " has not profile in Japanese.");
+			return true;
+		}
+		if (user.getStatusesCount() < MIN_TWEET_FOR_FOLLOW) {
+			log.info(SPAM_USER_LOG_LABEL + user.getScreenName() + " " + user.getId() + " tweets few");
+			return true;
+		}
+		for (String w : spamWords) {
+			if (0 < prof.indexOf(w)) {
+				log.info(SPAM_USER_LOG_LABEL + user.getScreenName() + " " + user.getId() + " has spam words:" + w);
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private List<Long> calcNotFollow(IDs follower, IDs friends) {

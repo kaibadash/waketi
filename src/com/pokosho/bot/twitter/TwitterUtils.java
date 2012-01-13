@@ -108,6 +108,38 @@ public class TwitterUtils {
 		return notTeacher;
 	}
 
+	public static Set<String> getStringSet(String filePath) {
+		Set<String> stringSet = new HashSet<String>();
+		FileReader reader = null;
+		BufferedReader br = null;
+		try {
+			reader = new FileReader(filePath);
+			br = new BufferedReader(reader);
+			String line;
+			while ((line = br.readLine()) != null) {
+				stringSet.add(line);
+			}
+		} catch (NumberFormatException e) {
+			log.error("format error", e);
+		} catch (FileNotFoundException e) {
+			log.debug("file not found", e);
+		} catch (IOException e) {
+			log.error("IOException error", e);
+		} finally {
+			try {
+				if (br != null) {
+					br.close();
+				}
+				if (reader != null) {
+					reader.close();
+				}
+			} catch (IOException e) {
+				log.error("close error", e);
+			}
+		}
+		return stringSet;
+	}
+
 	/**
 	 * スパムかどうか判定する.
 	 *
