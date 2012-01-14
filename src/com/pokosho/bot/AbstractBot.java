@@ -122,11 +122,14 @@ public abstract class AbstractBot {
 			if (token == null) {
 				return null;
 			}
-			Token maxNounCountToken = null; // 最もカウントが多い名詞
+			Token maxCostToken = null; // 最もカウントが多い名詞
 			Map<String, Integer> tokenCount = new HashMap<String, Integer>(); // 頻出単語
 			int maxCount = 0;
+			int beforeCost = 0;
+			int maxCost = 0;
 			double maxTFIDF = 0;
 			Token keyword = null;
+			Token maxNounCountToken = null;
 			for (Token t : token) {
 				log.debug("surface:" + t.getSurface() + " cost:" + t.getCost() + " pos:" + t.getPos());
 				// 名詞でtf-idfが高い言葉
@@ -149,11 +152,17 @@ public abstract class AbstractBot {
 						}
 					}
 				}
+				// get max cost
+				int costDiff = t.getCost() - beforeCost;
+				if (maxCost < costDiff) {
+					maxCost = costDiff;
+					maxCostToken = t;
+				}
+				beforeCost = t.getCost();
 			}
-			// コストが低い単語
-			log.info("selected max cost word:" +
-					(keyword != null ? keyword.getSurface():"null") +
-					" max count:" + (maxNounCountToken != null ? maxNounCountToken.getSurface() : "null"));
+			log.info("tfidf:" +	(keyword != null ? keyword.getSurface():"null") +
+					" max cost:" + (maxCostToken != null ? maxCostToken.getSurface() : "null") +
+					" max noun count:" + (maxNounCountToken != null ? maxNounCountToken.getSurface() : "null"));
 			// 最大コストの単語で始まっているか調べて、始まっていたら使う
 			Word[] word = null;
 			if (0 < maxTFIDF) {
@@ -162,15 +171,22 @@ public abstract class AbstractBot {
 						Query.select().where(TableInfo.TABLE_WORD_WORD + " = ?",
 								keyword.getSurface()));
 			}
-			if (word == null || word.length == 0) {
-				log.debug("keyword: " + keyword.getSurface() + " isn't found. user max count token.");
+			if ((word == null || word.length == 0) && maxCostToken != null) {
+				log.debug("keyword isn't found. use max count token:" + maxCostToken.getSurface());
 				word = manager.find(
 						Word.class,
 						Query.select().where(TableInfo.TABLE_WORD_WORD + " = ?",
-								maxNounCountToken.getSurface()));
+								maxCostToken.getSurface()));
+			}
+			if ((word == null || word.length == 0) && maxNounCountToken != null) {
+				log.debug("keyword isn't found. use max count token:" + maxNounCountToken.getSurface());
+				word = manager.find(
+						Word.class,
+						Query.select().where(TableInfo.TABLE_WORD_WORD + " = ?",
+								maxCostToken.getSurface()));
 			}
 			if (word == null || word.length == 0) {
-				log.debug("maxNounCountToken: " + maxNounCountToken.getSurface() + " isn't found. can't reply.");
+				log.debug("keyword isn't found. can't reply.");
 				return null;
 			}
 
@@ -507,6 +523,9 @@ public abstract class AbstractBot {
 			log.error("can't find keyword(" + keyword +") in tweet(" + tweet + ")");
 			return 0; // tweetにキーワードがない
 		}
+		if (tf == 0 && (tweet.startsWith(keyword) || tweet.endsWith(keyword))) {
+			tf = 1;
+		}
 		// df:キーワードを含むdocument数
 		Word[] word = manager.find(Word.class,  Query.select().where(TableInfo.TABLE_WORD_WORD + "=?", keyword));
 		if (word.length == 0) {
@@ -520,7 +539,7 @@ public abstract class AbstractBot {
 		}
 		// calculate TF-IDF
 		double tfidf = tf * Math.log(numberOfDocuments/df);
-		log.error("tfidf=" + tfidf + " keyword(" + keyword +") in tweet(" + tweet + ")");
+		log.debug("tfidf=" + tfidf + " keyword(" + keyword +") in tweet(" + tweet + ")");
 		return tfidf;
 	}
 }

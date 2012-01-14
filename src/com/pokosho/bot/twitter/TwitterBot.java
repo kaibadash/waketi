@@ -574,11 +574,11 @@ public class TwitterBot extends AbstractBot {
 			super.onStatus(from);
 			String tweet = from.getText();
 			String s = null;
-			log.info("onStatus user:" + from.getUser().getScreenName() + " tw:"
-					+ tweet);
 			if (!tweet.contains("@" + selfScreenName)) {
 				return;
 			}
+			log.info("onStatus user:" + from.getUser().getScreenName() + " tw:"
+					+ tweet);
 			// reply超過チェック
 			try {
 				// ユーザの一時間以内のreplyを取得
