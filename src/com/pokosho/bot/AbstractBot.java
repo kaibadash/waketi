@@ -519,12 +519,12 @@ public abstract class AbstractBot {
 	private double calculateTFIDF(String tweet, String keyword, long numberOfDocuments) throws SQLException {
 		// tf:テキスト中の出現回数(tweetなのでほとんど1)
 		int tf = tweet.split(keyword).length - 1;
+		if (tf == 0 && (tweet.startsWith(keyword) || tweet.endsWith(keyword))) {
+			tf = 1;
+		}
 		if (tf < 1) {
 			log.error("can't find keyword(" + keyword +") in tweet(" + tweet + ")");
 			return 0; // tweetにキーワードがない
-		}
-		if (tf == 0 && (tweet.startsWith(keyword) || tweet.endsWith(keyword))) {
-			tf = 1;
 		}
 		// df:キーワードを含むdocument数
 		Word[] word = manager.find(Word.class,  Query.select().where(TableInfo.TABLE_WORD_WORD + "=?", keyword));
