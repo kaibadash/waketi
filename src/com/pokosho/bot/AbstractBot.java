@@ -113,7 +113,7 @@ public abstract class AbstractBot {
 	 *            返信元メッセージ.
 	 * @return 返事.
 	 */
-	public synchronized String say(String from) throws PokoshoException {
+	public synchronized String say(String from, int numberOfDocuments) throws PokoshoException {
 		try {
 			log.debug("reply base:" + from);
 			from = StringUtils.simplizeForReply(from);
@@ -122,19 +122,20 @@ public abstract class AbstractBot {
 			if (token == null) {
 				return null;
 			}
-			Token minCostToken = null;
-			Token minNounCostToken = null; // 最もコストの低い(珍しい)名詞
 			Token maxNounCountToken = null; // 最もカウントが多い名詞
 			Map<String, Integer> tokenCount = new HashMap<String, Integer>(); // 頻出単語
 			int maxCount = 0;
+			double maxTFIDF = 0;
+			Token keyword = null;
 			for (Token t : token) {
 				log.debug("surface:" + t.getSurface() + " cost:" + t.getCost() + " pos:" + t.getPos());
-				// 名詞でコストが高い言葉
+				// 名詞でtf-idfが高い言葉
 				Pos tPos = StringUtils.toPos(t.getPos());
 				if (tPos == Pos.Noun) {
-					if (minNounCostToken == null || t.getCost() < minNounCostToken.getCost()) {
-						minNounCostToken = t;
-						log.debug("selected 名詞:" + minNounCostToken.getSurface());
+					double tdidf = calculateTFIDF(from , t.getSurface(), numberOfDocuments);
+					if (maxTFIDF < tdidf) {
+						maxTFIDF = tdidf;
+						keyword = t;
 					}
 					// 出現回数のカウント
 					if(!tokenCount.containsKey(t.getSurface())) {
@@ -148,50 +149,31 @@ public abstract class AbstractBot {
 						}
 					}
 				}
-				// costが高い言葉(名詞を選んでも意味が無いので名詞は除く)
-				if (tPos != Pos.Noun && tPos != Pos.Preposition && tPos != Pos.Conjunction && tPos != Pos.Joshi) {
-					if (minCostToken == null || minCostToken.getCost() > t.getCost()) {
-						minCostToken = t;
-					}
-				}
 			}
 			// コストが低い単語
 			log.info("selected max cost word:" +
-					(minCostToken != null ? minCostToken.getSurface():"null") +
-					" selected max cost noun word:" + (minNounCostToken != null ? minNounCostToken.getSurface():"noun not found.") +
+					(keyword != null ? keyword.getSurface():"null") +
 					" max count:" + (maxNounCountToken != null ? maxNounCountToken.getSurface() : "null"));
-			// 使用するtokenの決定
-			Token targetToken = null;
-			if (1 < maxCount) {
-				targetToken = maxNounCountToken;
-			} else if (minNounCostToken != null) {
-				targetToken = minNounCostToken;
-			} else if (minCostToken != null) {
-				targetToken = minCostToken;
-			} else {
+			// 最大コストの単語で始まっているか調べて、始まっていたら使う
+			Word[] word = null;
+			if (0 < maxTFIDF) {
+				word = manager.find(
+						Word.class,
+						Query.select().where(TableInfo.TABLE_WORD_WORD + " = ?",
+								keyword.getSurface()));
+			}
+			if (word == null || word.length == 0) {
+				log.debug("keyword: " + keyword.getSurface() + " isn't found. user max count token.");
+				word = manager.find(
+						Word.class,
+						Query.select().where(TableInfo.TABLE_WORD_WORD + " = ?",
+								maxNounCountToken.getSurface()));
+			}
+			if (word == null || word.length == 0) {
+				log.debug("maxNounCountToken: " + maxNounCountToken.getSurface() + " isn't found. can't reply.");
 				return null;
 			}
 
-			// 最大コストの単語で始まっているか調べて、始まっていたら使う
-			Word[] word = null;
-			word = manager.find(
-					Word.class,
-					Query.select().where(TableInfo.TABLE_WORD_WORD + " = ?",
-							targetToken.getSurface()));
-			if (word == null || word.length == 0) {
-				log.info("max cost nown word was not found. use maxCostToken");
-				if (minCostToken != null) {
-					word = manager.find(
-							Word.class,
-							Query.select().where(TableInfo.TABLE_WORD_WORD + " = ?",
-									targetToken.getSurface()));
-					if (word == null || word.length == 0) {
-						log.info("no word!");
-						return null;
-					}
-				}
-				return null;
-			}
 			// word found, start creating chain
 			Chain[] chain = manager.find(
 					Chain.class,
@@ -516,5 +498,29 @@ public abstract class AbstractBot {
 			result.append(words[0].getWord());
 		}
 		return result.toString();
+	}
+
+	private double calculateTFIDF(String tweet, String keyword, long numberOfDocuments) throws SQLException {
+		// tf:テキスト中の出現回数(tweetなのでほとんど1)
+		int tf = tweet.split(keyword).length - 1;
+		if (tf < 1) {
+			log.error("can't find keyword(" + keyword +") in tweet(" + tweet + ")");
+			return 0; // tweetにキーワードがない
+		}
+		// df:キーワードを含むdocument数
+		Word[] word = manager.find(Word.class,  Query.select().where(TableInfo.TABLE_WORD_WORD + "=?", keyword));
+		if (word.length == 0) {
+			log.debug("can't find keyword(" + keyword + "). TFIDF=0");
+			return 0;
+		}
+		int df = word[0].getWord_Count();
+		if (df == 0) {
+			log.debug("keyword count(" + keyword + ") is 0. TFIDF=0");
+			return 0;
+		}
+		// calculate TF-IDF
+		double tfidf = tf * Math.log(numberOfDocuments/df);
+		log.error("tfidf=" + tfidf + " keyword(" + keyword +") in tweet(" + tweet + ")");
+		return tfidf;
 	}
 }

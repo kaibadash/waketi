@@ -66,6 +66,8 @@ public class TwitterBot extends AbstractBot {
 	private static final String WORK_LAST_FOLLOW_FILE = "waketi_last_follow.txt";
 	private static final int FOLLOW_INTERVAL_MSEC = 60 * 60 * 3 * 1000; // フォロー返しの間隔
 	private static final int STATUS_MAX_COUNT = 200;
+	// TF-IDFのN. 以前のコストと比較するわけではないので定数で良い
+	private static final int NUMBER_OF_DOCUMENT = 100000;
 	private static Set<String> NOT_TREND;
 	private static Set<String> spamWords;
 	private int maxReplyCountPerHour = 10;
@@ -87,7 +89,7 @@ public class TwitterBot extends AbstractBot {
 	private String trendPath;
 	private String notTreacherPath;
 	private String spamWordsPath;
-	private long selfUser;
+	private User selfUser;
 
 	private static final String KEY_CONSUMER_KEY = "twitter.consumer.key";
 	private static final String KEY_CONSUMER_SECRET = "twitter.consumer.secret";
@@ -112,7 +114,8 @@ public class TwitterBot extends AbstractBot {
 		Configuration conf = builder.build();
 		twitter = new TwitterFactory(conf).getInstance();
 		try {
-			selfUser = twitter.getId();
+			long selfUserID = twitter.getId();
+			selfUser = twitter.showUser(selfUserID);
 		} catch (IllegalStateException e) {
 			throw new PokoshoException(e);
 		} catch (TwitterException e) {
@@ -185,7 +188,7 @@ public class TwitterBot extends AbstractBot {
 				}
 				// @xxx を削除
 				s = TwitterUtils.removeMention(s);
-				s = super.say(s);
+				s = super.say(s, NUMBER_OF_DOCUMENT);
 				if (s == null || s.length() == 0) {
 					log.error("no word");
 					continue;
@@ -216,7 +219,7 @@ public class TwitterBot extends AbstractBot {
 		TwitterStreamFactory factory = new TwitterStreamFactory(conf);
 		TwitterStream twitterStream = factory.getInstance();
 		try {
-			twitterStream.addListener(new MentionEventListener(selfUser));
+			twitterStream.addListener(new MentionEventListener(selfUser.getId()));
 		} catch (TwitterException e) {
 			throw new PokoshoException(e);
 		}
@@ -243,8 +246,8 @@ public class TwitterBot extends AbstractBot {
 					+ " lastModified+FOLLOW_INTERVAL_MSEC:"
 					+ (f.lastModified() + FOLLOW_INTERVAL_MSEC));
 			if (!f.exists() || f.lastModified() + FOLLOW_INTERVAL_MSEC < cTime) {
-				friends = twitter.getFriendsIDs(selfUser, -1);
-				follower = twitter.getFollowersIDs(selfUser, -1);
+				friends = twitter.getFriendsIDs(selfUser.getId(), -1);
+				follower = twitter.getFollowersIDs(selfUser.getId(), -1);
 				List<Long> notFollowIdList = calcNotFollow(follower, friends);
 				doFollow(notFollowIdList);
 			}
@@ -274,7 +277,7 @@ public class TwitterBot extends AbstractBot {
 					continue;
 				}
 				try {
-					if (s.getUser().getId() == selfUser)
+					if (s.getUser().getId() == selfUser.getId())
 						continue;
 					String tweet = s.getText();
 					if (TwitterUtils.isSpamTweet(tweet))
@@ -622,7 +625,7 @@ public class TwitterBot extends AbstractBot {
 				s = TwitterUtils.removeUrl(s);
 				s = TwitterUtils.removeHashTags(s);
 				log.info("start say against:" + s);
-				s = say(s);
+				s = say(s, NUMBER_OF_DOCUMENT);
 				log.info("end say");
 				if (s == null || s.length() == 0) {
 					log.info("no word");
@@ -644,8 +647,6 @@ public class TwitterBot extends AbstractBot {
 			try {
 				manager.create(
 						Reply.class,
-						new DBParam(TableInfo.TABLE_REPLY_TWEET_ID, from
-								.getId()),
 						new DBParam(TableInfo.TABLE_REPLY_TWEET_ID, from
 								.getId()),
 						new DBParam(TableInfo.TABLE_REPLY_USER_ID, from
