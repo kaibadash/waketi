@@ -9,7 +9,6 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.sql.Connection;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -578,9 +577,7 @@ public class TwitterBot extends AbstractBot {
 				return;
 			}
 			// reply超過チェック
-			Connection conn = null;
 			try {
-				conn = manager.getProvider().getConnection();
 				// ユーザの一時間以内のreplyを取得
 				Reply[] reply = manager.find(
 						Reply.class,
@@ -600,13 +597,6 @@ public class TwitterBot extends AbstractBot {
 			} catch (SQLException e) {
 				log.error("sql error", e);
 				return;
-			} finally {
-				try {
-					conn.close();
-				} catch (SQLException e) {
-					log.error("close error", e);
-					return;
-				}
 			}
 			try {
 				log.info("start getId");

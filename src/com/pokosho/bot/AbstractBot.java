@@ -6,7 +6,6 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -86,9 +85,7 @@ public abstract class AbstractBot {
 	 */
 	public String say() throws PokoshoException {
 		String result = null;
-		Connection conn = null;
 		try {
-			conn = manager.getProvider().getConnection();
 			Chain[] chain = manager.find(
 					Chain.class,
 					Query.select()
@@ -105,12 +102,6 @@ public abstract class AbstractBot {
 			result = strRep.rep(result);
 		} catch (SQLException e) {
 			throw new PokoshoException(e);
-		} finally {
-			try {
-				conn.close();
-			} catch (SQLException e) {
-				throw new PokoshoException(e);
-			}
 		}
 		return result;
 	}
@@ -123,7 +114,6 @@ public abstract class AbstractBot {
 	 * @return 返事.
 	 */
 	public synchronized String say(String from) throws PokoshoException {
-		Connection conn = null;
 		try {
 			log.debug("reply base:" + from);
 			from = StringUtils.simplizeForReply(from);
@@ -183,7 +173,6 @@ public abstract class AbstractBot {
 			}
 
 			// 最大コストの単語で始まっているか調べて、始まっていたら使う
-			conn = manager.getProvider().getConnection();
 			Word[] word = null;
 			word = manager.find(
 					Word.class,
@@ -241,12 +230,6 @@ public abstract class AbstractBot {
 			throw new PokoshoException(e);
 		} catch (IOException e) {
 			throw new PokoshoException(e);
-		} finally {
-			try {
-				if (conn != null) conn.close();
-			} catch (SQLException e) {
-				throw new PokoshoException(e);
-			}
 		}
 	}
 
@@ -321,7 +304,7 @@ public abstract class AbstractBot {
 				}
 			}
 		}
-		// EOS
+		// EOF
 		createChain(chainTmp[1], chainTmp[2], null, false);
 		return token;
 	}
