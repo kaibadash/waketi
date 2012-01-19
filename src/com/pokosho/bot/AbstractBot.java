@@ -13,6 +13,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.StringTokenizer;
 
 import net.java.ao.DBParam;
 import net.java.ao.EntityManager;
@@ -518,9 +519,16 @@ public abstract class AbstractBot {
 
 	private double calculateTFIDF(String tweet, String keyword, long numberOfDocuments) throws SQLException {
 		// tf:テキスト中の出現回数(tweetなのでほとんど1)
-		int tf = tweet.split(keyword).length - 1;
-		if (tf == 0 && (tweet.startsWith(keyword) || tweet.endsWith(keyword))) {
+		StringTokenizer st = new StringTokenizer(tweet, keyword);
+		int tf = st.countTokens() - 1;
+		if (tf == 0) {
 			tf = 1;
+		} else {
+			if (tweet.startsWith(keyword)) {
+				tf++;
+			} else if (tweet.endsWith(keyword)) {
+				tf++;
+			}
 		}
 		if (tf < 1) {
 			log.error("can't find keyword(" + keyword +") in tweet(" + tweet + ")");

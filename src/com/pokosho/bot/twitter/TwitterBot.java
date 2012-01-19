@@ -438,7 +438,7 @@ public class TwitterBot extends AbstractBot {
 	 */
 	private boolean isSpamUser(User user) {
 		String prof = user.getDescription();
-		if (prof.length() == 0) {
+		if (prof == null || prof.length() == 0) {
 			log.info(SPAM_USER_LOG_LABEL + user.getScreenName() + " " + user.getId() + " has not profile.");
 			return true;
 		}
