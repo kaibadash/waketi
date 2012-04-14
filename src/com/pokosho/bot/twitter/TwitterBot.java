@@ -28,8 +28,8 @@ import java.util.regex.Pattern;
 import net.arnx.jsonic.JSON;
 import net.java.ao.DBParam;
 import net.java.ao.Query;
-import net.java.sen.Token;
 
+import org.atilika.kuromoji.Token;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -290,22 +290,25 @@ public class TwitterBot extends AbstractBot {
 					// 「。」で切れたところで文章の終わりとする
 					for (String msg : splited) {
 						// トレンド用の集計
-						Token[] token = studyFromLine(msg);
-						if (token != null && 0 < token.length) {
+						List<Token> token = studyFromLine(msg);
+						if (token != null && 0 < token.size()) {
 							for (Token t : token) {
-								if (StringUtils.toPos(t.getPos()) == Pos.Noun
+								if (StringUtils
+										.toPos(t.getAllFeaturesArray()[StringUtils.KUROMOJI_POS_INDEX]) == Pos.Noun
 										&& TwitterUtils.containsJPN(t
-												.getSurface())
-										&& !NOT_TREND.contains(t.getSurface())
-										&& 1 < t.getSurface().length()) {
+												.getSurfaceForm())
+										&& !NOT_TREND.contains(t
+												.getSurfaceForm())
+										&& 1 < t.getSurfaceForm().length()) {
 									int count = 0;
 									if (trendCountMap.containsKey(t
-											.getSurface())) {
+											.getSurfaceForm())) {
 										count = trendCountMap.get(t
-												.getSurface());
+												.getSurfaceForm());
 									}
 									count++;
-									trendCountMap.put(t.getSurface(), count);
+									trendCountMap
+											.put(t.getSurfaceForm(), count);
 								}
 							}
 						}
@@ -433,26 +436,31 @@ public class TwitterBot extends AbstractBot {
 
 	/**
 	 * スパム判定.
+	 *
 	 * @param user
 	 * @return
 	 */
 	private boolean isSpamUser(User user) {
 		String prof = user.getDescription();
 		if (prof == null || prof.length() == 0) {
-			log.info(SPAM_USER_LOG_LABEL + user.getScreenName() + " " + user.getId() + " has not profile.");
+			log.info(SPAM_USER_LOG_LABEL + user.getScreenName() + " "
+					+ user.getId() + " has not profile.");
 			return true;
 		}
 		if (!TwitterUtils.containsJPN(prof)) {
-			log.info(SPAM_USER_LOG_LABEL + user.getScreenName() + " " + user.getId() + " has not profile in Japanese.");
+			log.info(SPAM_USER_LOG_LABEL + user.getScreenName() + " "
+					+ user.getId() + " has not profile in Japanese.");
 			return true;
 		}
 		if (user.getStatusesCount() < MIN_TWEET_FOR_FOLLOW) {
-			log.info(SPAM_USER_LOG_LABEL + user.getScreenName() + " " + user.getId() + " tweets few");
+			log.info(SPAM_USER_LOG_LABEL + user.getScreenName() + " "
+					+ user.getId() + " tweets few");
 			return true;
 		}
 		for (String w : spamWords) {
 			if (0 < prof.indexOf(w)) {
-				log.info(SPAM_USER_LOG_LABEL + user.getScreenName() + " " + user.getId() + " has spam words:" + w);
+				log.info(SPAM_USER_LOG_LABEL + user.getScreenName() + " "
+						+ user.getId() + " has spam words:" + w);
 				return true;
 			}
 		}
@@ -587,8 +595,9 @@ public class TwitterBot extends AbstractBot {
 						Query.select().where(
 								TableInfo.TABLE_REPLY_USER_ID + " = ? and "
 										+ TableInfo.TABLE_REPLY_TIME + " > ?",
-								from.getUser().getId(), System.currentTimeMillis() / 1000 - maxReplyIntervalSec
-								));
+								from.getUser().getId(),
+								System.currentTimeMillis() / 1000
+										- maxReplyIntervalSec));
 				if (reply != null) {
 					log.debug("reply count:" + reply.length);
 					if (reply != null && maxReplyCountPerHour < reply.length) {
