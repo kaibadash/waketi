@@ -18,9 +18,9 @@ import java.util.StringTokenizer;
 import net.java.ao.DBParam;
 import net.java.ao.EntityManager;
 import net.java.ao.Query;
-import net.java.sen.StringTagger;
-import net.java.sen.Token;
 
+import org.atilika.kuromoji.Token;
+import org.atilika.kuromoji.Tokenizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,19 +31,34 @@ import com.pokosho.dao.Word;
 import com.pokosho.db.DBUtil;
 import com.pokosho.db.Pos;
 import com.pokosho.db.TableInfo;
+import com.pokosho.util.DictionaryManager;
 import com.pokosho.util.StrRep;
 import com.pokosho.util.StringUtils;
 
 public abstract class AbstractBot {
 	private static Logger log = LoggerFactory.getLogger(AbstractBot.class);
 	protected static final int CHAIN_COUNT = 3;
-	protected StringTagger tagger;
+	protected Tokenizer tokenizer = null;
 	protected static EntityManager manager;
 	protected StrRep strRep;
 	protected Properties prop;
+	private boolean useChikuwa = true;
 
 	public AbstractBot(String dbPropPath, String botPropPath)
 			throws PokoshoException {
+		try {
+			if (new File(DictionaryManager.DICT_FILE_PATH).exists()) {
+				tokenizer = Tokenizer.builder().userDictionary(DictionaryManager.DICT_FILE_PATH).build();
+			} else {
+				tokenizer = Tokenizer.builder().build();
+			}
+		} catch (FileNotFoundException e2) {
+			log.error("user dictionary is not found", e2);
+			throw new PokoshoException(e2);
+		} catch (IOException e2) {
+			log.error("can't open user dictionary", e2);
+			throw new PokoshoException(e2);
+		}
 		prop = new Properties();
 		log.debug("dbPropPath:" + dbPropPath);
 		log.debug("botPropPath:" + botPropPath);
@@ -60,11 +75,7 @@ public abstract class AbstractBot {
 		strRep = new StrRep(prop.getProperty("com.pokosho.repstr"));
 		try {
 			manager = DBUtil.getEntityManager(dbPropPath);
-			tagger = StringTagger.getInstance();
 		} catch (IllegalArgumentException e) {
-			log.error("system error", e);
-			throw new PokoshoException(e);
-		} catch (IOException e) {
 			log.error("system error", e);
 			throw new PokoshoException(e);
 		}
@@ -119,72 +130,54 @@ public abstract class AbstractBot {
 			log.debug("reply base:" + from);
 			from = StringUtils.simplizeForReply(from);
 			log.debug("simplizeForReply:" + from);
-			Token[] token = tagger.analyze(from);
+			List<Token> token = tokenizer.tokenize(from);
 			if (token == null) {
 				return null;
 			}
-			Token maxCostToken = null; // 最もカウントが多い名詞
 			Map<String, Integer> tokenCount = new HashMap<String, Integer>(); // 頻出単語
 			int maxCount = 0;
-			int beforeCost = 0;
-			int maxCost = 0;
 			double maxTFIDF = 0;
 			Token keyword = null;
 			Token maxNounCountToken = null;
 			for (Token t : token) {
-				log.debug("surface:" + t.getSurface() + " cost:" + t.getCost() + " pos:" + t.getPos());
+				log.debug("surface:" + t.getSurfaceForm() + " features:" + t.getAllFeatures());
 				// 名詞でtf-idfが高い言葉
-				Pos tPos = StringUtils.toPos(t.getPos());
+				Pos tPos = StringUtils.toPos(t.getAllFeaturesArray()[StringUtils.KUROMOJI_POS_INDEX]);
 				if (tPos == Pos.Noun) {
-					double tdidf = calculateTFIDF(from , t.getSurface(), numberOfDocuments);
+					double tdidf = calculateTFIDF(from , t.getSurfaceForm(), numberOfDocuments);
 					if (maxTFIDF < tdidf) {
 						maxTFIDF = tdidf;
 						keyword = t;
 					}
 					// 出現回数のカウント
-					if(!tokenCount.containsKey(t.getSurface())) {
-						tokenCount.put(t.getSurface(), 1);
+					if(!tokenCount.containsKey(t.getSurfaceForm())) {
+						tokenCount.put(t.getSurfaceForm(), 1);
 					} else {
-						int c = tokenCount.get(t.getSurface()) + 1;
+						int c = tokenCount.get(t.getSurfaceForm()) + 1;
 						if (maxCount < c) {
 							maxCount = c;
-							tokenCount.put(t.getSurface(), c);
+							tokenCount.put(t.getSurfaceForm(), c);
 							maxNounCountToken = t;
 						}
 					}
 				}
-				// get max cost
-				int costDiff = t.getCost() - beforeCost;
-				if (maxCost < costDiff) {
-					maxCost = costDiff;
-					maxCostToken = t;
-				}
-				beforeCost = t.getCost();
 			}
-			log.info("tfidf:" +	(keyword != null ? keyword.getSurface():"null") +
-					" max cost:" + (maxCostToken != null ? maxCostToken.getSurface() : "null") +
-					" max noun count:" + (maxNounCountToken != null ? maxNounCountToken.getSurface() : "null"));
+			log.info("tfidf:" +	(keyword != null ? keyword.getSurfaceForm():"null") +
+					" max noun count:" + (maxNounCountToken != null ? maxNounCountToken.getSurfaceForm() : "null"));
 			// 最大コストの単語で始まっているか調べて、始まっていたら使う
 			Word[] word = null;
 			if (0 < maxTFIDF) {
 				word = manager.find(
 						Word.class,
 						Query.select().where(TableInfo.TABLE_WORD_WORD + " = ?",
-								keyword.getSurface()));
-			}
-			if ((word == null || word.length == 0) && maxCostToken != null) {
-				log.debug("keyword isn't found. use max count token:" + maxCostToken.getSurface());
-				word = manager.find(
-						Word.class,
-						Query.select().where(TableInfo.TABLE_WORD_WORD + " = ?",
-								maxCostToken.getSurface()));
+								keyword.getSurfaceForm()));
 			}
 			if ((word == null || word.length == 0) && maxNounCountToken != null) {
-				log.debug("keyword isn't found. use max count token:" + maxNounCountToken.getSurface());
+				log.debug("keyword isn't found. use max count token:" + maxNounCountToken.getSurfaceForm());
 				word = manager.find(
 						Word.class,
 						Query.select().where(TableInfo.TABLE_WORD_WORD + " = ?",
-								maxCostToken.getSurface()));
+								maxNounCountToken.getSurfaceForm()));
 			}
 			if (word == null || word.length == 0) {
 				log.debug("keyword isn't found. can't reply.");
@@ -227,12 +220,10 @@ public abstract class AbstractBot {
 			return result;
 		} catch (SQLException e) {
 			throw new PokoshoException(e);
-		} catch (IOException e) {
-			throw new PokoshoException(e);
 		}
 	}
 
-	protected Token[] studyFromLine(String str) throws IOException,
+	protected List<Token> studyFromLine(String str) throws IOException,
 			SQLException {
 		log.info("studyFromLine:" + str);
 		// スパム判定
@@ -248,24 +239,23 @@ public abstract class AbstractBot {
 			return null;
 		}
 		str = StringUtils.simplize(str);
-		Token[] token = tagger.analyze(str);
+		List<Token> token = tokenizer.tokenize(str);
 		if (token == null) {
 			return null;
 		}
 		Integer[] chainTmp = new Integer[CHAIN_COUNT];
-		for (int i = 0; i < token.length; i++) {
-			log.debug(token[i].getBasicString() + "(" + token[i].getTermInfo()
-					+ ")");
+		for (int i = 0; i < token.size(); i++) {
+			log.debug(token.get(i).getSurfaceForm());
 			Word[] existWord = manager.find(
 					Word.class,
 					Query.select().where(TableInfo.TABLE_WORD_WORD + " = ?",
-							token[i].getSurface()));
+							token.get(i).getSurfaceForm()));
 			if (existWord == null || existWord.length == 0) {
 				// 新規作成
 				Word newWord = manager.create(Word.class);
-				newWord.setWord(token[i].getSurface());
+				newWord.setWord(token.get(i).getSurfaceForm());
 				newWord.setWord_Count(1);
-				newWord.setPos_ID((int) StringUtils.toPos(token[i].getPos())
+				newWord.setPos_ID((int) StringUtils.toPos(token.get(i).getAllFeaturesArray()[StringUtils.KUROMOJI_POS_INDEX])
 						.getIntValue());
 				newWord.setTime((int) (System.currentTimeMillis() / 1000));
 				newWord.save();
@@ -274,8 +264,8 @@ public abstract class AbstractBot {
 						Word.class,
 						Query.select().where(
 								TableInfo.TABLE_WORD_WORD + " = ?",
-								token[i].getSurface())); // createで作っている時点でIDは分かるので無駄…
-															// TODO
+								token.get(i).getSurfaceForm()));
+				// createで作っている時点でIDは分かるので無駄…
 			} else {
 				existWord[0].setWord_Count(existWord[0].getWord_Count() + 1);
 				existWord[0].setTime((int) (System.currentTimeMillis() / 1000));
@@ -512,7 +502,14 @@ public abstract class AbstractBot {
 							.isAlfabet(result.charAt(result.length() - 1))) {
 				result.append(" ");
 			}
-			result.append(words[0].getWord());
+			// April Fool
+			if (!useChikuwa && words[0].getPos_ID() == Pos.Noun.getIntValue() && Math.random() < 0.3) {
+				useChikuwa = true;
+				result.append("チクワ");
+			} else {
+				useChikuwa = false;
+				result.append(words[0].getWord());
+			}
 		}
 		return result.toString();
 	}
