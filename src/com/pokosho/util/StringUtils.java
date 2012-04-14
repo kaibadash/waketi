@@ -8,6 +8,7 @@ import com.pokosho.db.Pos;
 public class StringUtils {
 	private static Logger log = LoggerFactory.getLogger(StringUtils.class);
 	public static String ENCODE_STRING = "UTF-8";
+	public static final int KUROMOJI_POS_INDEX = 0;
 	private final static String NOUN = "名詞";
 	private final static String VERV = "動詞";
 	private final static String ADJECTIVE = "形容詞";
