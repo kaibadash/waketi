@@ -42,7 +42,7 @@ public abstract class AbstractBot {
 	protected static EntityManager manager;
 	protected StrRep strRep;
 	protected Properties prop;
-	private boolean useChikuwa = true;
+	private boolean useChikuwa = false;
 
 	public AbstractBot(String dbPropPath, String botPropPath)
 			throws PokoshoException {
