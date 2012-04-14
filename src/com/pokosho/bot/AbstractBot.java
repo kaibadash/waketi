@@ -37,6 +37,7 @@ import com.pokosho.util.StringUtils;
 
 public abstract class AbstractBot {
 	private static Logger log = LoggerFactory.getLogger(AbstractBot.class);
+	private static final boolean APRIL_FOOL = false;
 	protected static final int CHAIN_COUNT = 3;
 	protected Tokenizer tokenizer = null;
 	protected static EntityManager manager;
@@ -503,11 +504,15 @@ public abstract class AbstractBot {
 				result.append(" ");
 			}
 			// April Fool
-			if (!useChikuwa && words[0].getPos_ID() == Pos.Noun.getIntValue() && Math.random() < 0.3) {
-				useChikuwa = true;
-				result.append("チクワ");
+			if (APRIL_FOOL) {
+				if (!useChikuwa && words[0].getPos_ID() == Pos.Noun.getIntValue() && Math.random() < 0.3) {
+					useChikuwa = true;
+					result.append("チクワ");
+				} else {
+					useChikuwa = false;
+					result.append(words[0].getWord());
+				}
 			} else {
-				useChikuwa = false;
 				result.append(words[0].getWord());
 			}
 		}
