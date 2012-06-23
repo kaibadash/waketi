@@ -40,7 +40,7 @@
 	<!-- ログ出力に関する設定 -->
 	<root>
 		<!-- 出力するレベルを設定 -->
-		<level value="debug" />
+		<level value="info" />
 
 		<!-- アペンダを設定
 		<appender-ref ref="FILE" />

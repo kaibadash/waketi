@@ -280,8 +280,10 @@ public class TwitterBot extends AbstractBot {
 					if (s.getUser().getId() == selfUser.getId())
 						continue;
 					String tweet = s.getText();
-					if (TwitterUtils.isSpamTweet(tweet))
+					if (TwitterUtils.isSpamTweet(tweet)) {
+						log.debug("spam:" + tweet + " user:" + s.getUser().getScreenName());
 						continue;
+					}
 					tweet = TwitterUtils.removeHashTags(tweet);
 					tweet = TwitterUtils.removeUrl(tweet);
 					tweet = TwitterUtils.removeMention(tweet);

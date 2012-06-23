@@ -30,6 +30,8 @@ public class TwitterUtils {
 			"[0-9a-zA-Z:\\-]", Pattern.CASE_INSENSITIVE);
 	private static final Pattern ALFABET_PATTERN = Pattern.compile(
 			"[a-zA-Z:\\-]", Pattern.CASE_INSENSITIVE);
+	private static final Pattern HANGUL_PATTERN = Pattern.compile(
+			"[\uAC00-\uD79F]", Pattern.CASE_INSENSITIVE);
 	private static final String FOUR_SQ_URL = "http://4sq.com/";
 	private static final String RT_STR = "RT";
 	private static final String QT_STR = "QT";
@@ -58,11 +60,18 @@ public class TwitterUtils {
 	public static boolean isSpamTweet(String tweet) {
 		if (tweet.contains(FOUR_SQ_URL))
 			return true;
+		if (containsKR(tweet))
+			return true;
 		return false;
 	}
 
 	public static boolean containsJPN(String tweet) {
 		Matcher matcher = CONTAIN_JPN_PATTERN.matcher(tweet);
+		return matcher.find();
+	}
+
+	public static boolean containsKR(String tweet) {
+		Matcher matcher = HANGUL_PATTERN.matcher(tweet);
 		return matcher.find();
 	}
 
@@ -138,18 +147,5 @@ public class TwitterUtils {
 			}
 		}
 		return stringSet;
-	}
-
-	/**
-	 * スパムかどうか判定する.
-	 *
-	 * @param str
-	 * @return
-	 */
-	public boolean isSpam(String tweet) {
-		Matcher matcher = URL_PATTERN.matcher(tweet);
-		if (matcher.find())
-			return true;
-		return false;
 	}
 }

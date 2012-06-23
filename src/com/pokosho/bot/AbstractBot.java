@@ -163,8 +163,7 @@ public abstract class AbstractBot {
 					}
 				}
 			}
-			log.info("tfidf:" +	(keyword != null ? keyword.getSurfaceForm():"null") +
-					" max noun count:" + (maxNounCountToken != null ? maxNounCountToken.getSurfaceForm() : "null"));
+
 			// 最大コストの単語で始まっているか調べて、始まっていたら使う
 			Word[] word = null;
 			if (0 < maxTFIDF) {
@@ -190,14 +189,14 @@ public abstract class AbstractBot {
 					Chain.class,
 					Query.select().where(
 							TableInfo.TABLE_CHAIN_START + " = ? and "
-									+ TableInfo.TABLE_CHAIN_PREFIX01 + " = ?",
+									+ TableInfo.TABLE_CHAIN_PREFIX01 + " = ?  order by rand() limit 1",
 							true, word[0].getWord_ID()));
 			boolean startWithMaxCountWord = false;
 			if (chain == null || chain.length == 0) {
 				chain = manager.find(
 						Chain.class,
 						Query.select().where(
-								TableInfo.TABLE_CHAIN_PREFIX01 + " = ?",
+								TableInfo.TABLE_CHAIN_PREFIX01 + " = ?  order by rand() limit 1",
 								word[0].getWord_ID()));
 				if (chain == null || chain.length == 0) {
 					// まずあり得ないが保険
@@ -218,6 +217,9 @@ public abstract class AbstractBot {
 			}
 			String result = createWordsFromIDList(idList);
 			result = strRep.rep(result);
+
+			log.info(from + " => " + result + " tfidf:" +	(keyword != null ? keyword.getSurfaceForm():"null") +
+					" max noun count:" + (maxNounCountToken != null ? maxNounCountToken.getSurfaceForm() : "null"));
 			return result;
 		} catch (SQLException e) {
 			throw new PokoshoException(e);
@@ -494,6 +496,9 @@ public abstract class AbstractBot {
 					Word.class,
 					Query.select().where(TableInfo.TABLE_WORD_WORD_ID + "=?",
 							idList.get(i)));
+			if (words[0].getWord().length() <= 0) {
+				continue;
+			}
 			char lastChar = words[0].getWord().charAt(
 					words[0].getWord().length() - 1);
 			// 半角英語の間にスペースを入れる

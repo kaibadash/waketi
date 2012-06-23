@@ -34,7 +34,9 @@ public class StringUtils {
 		res = res.replaceAll("@[a-zA-Z0-9_]+", "");
 		res = res.replaceAll("[「【(（『].*[」】）』¥¥(¥¥)¥¥[¥¥]]", "");
 		res = res.replaceAll("\"", "");
-		return res;
+		res = res.replaceAll("[\uE000-\uF8FF]", "。"); // 携帯の絵文字
+		res = res.replaceAll("[\u1F004-\u1F6C0]", "。"); // unicodeの絵文字
+			return res;
 	}
 
 	public static String simplizeForReply(String str) {
@@ -45,7 +47,7 @@ public class StringUtils {
 
 	public static Pos toPos(String posStr) {
 		String p = posStr.split("-")[0];
-		log.debug("toPos:" + p + " detail:" + posStr);
+		// log.debug("posStr:" + posStr + " toPos:" + p + " detail:" + posStr);
 		if (p == null || p.length() == 0 || p.startsWith(UNKNOWN)) {
 			/* 未知語は名詞扱い */
 			return Pos.Noun;
