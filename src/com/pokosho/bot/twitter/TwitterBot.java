@@ -163,7 +163,7 @@ public class TwitterBot extends AbstractBot {
 		long selfID;
 		try {
 			selfID = twitter.getId();
-			mentionList = twitter.getMentions(page);
+			mentionList = twitter.getMentionsTimeline();
 		} catch (TwitterException e1) {
 			throw new PokoshoException(e1);
 		}
