@@ -44,6 +44,8 @@ public abstract class AbstractBot {
 	protected StrRep strRep;
 	protected Properties prop;
 	private boolean useChikuwa = false;
+	// 新しく学習したToken
+	private List<Token> newTokens;
 
 	public AbstractBot(String dbPropPath, String botPropPath)
 			throws PokoshoException {
@@ -72,7 +74,6 @@ public abstract class AbstractBot {
 			log.error("IOException", e1);
 			throw new PokoshoException(e1);
 		}
-		System.setProperty("sen.home", prop.getProperty("com.pokosho.sendir"));
 		strRep = new StrRep(prop.getProperty("com.pokosho.repstr"));
 		try {
 			manager = DBUtil.getEntityManager(dbPropPath);
@@ -247,6 +248,9 @@ public abstract class AbstractBot {
 			return null;
 		}
 		Integer[] chainTmp = new Integer[CHAIN_COUNT];
+		this.newTokens = new ArrayList<Token>(token.size());
+		// chainを作成する。
+		// chainの作成確認のため、拡張for文は使わない。
 		for (int i = 0; i < token.size(); i++) {
 			log.debug(token.get(i).getSurfaceForm());
 			Word[] existWord = manager.find(
@@ -262,6 +266,10 @@ public abstract class AbstractBot {
 						.getIntValue());
 				newWord.setTime((int) (System.currentTimeMillis() / 1000));
 				newWord.save();
+				
+				// 新しく学習した単語を保持
+				this.newTokens.add(token.get(i));
+				
 				// IDを取得
 				existWord = manager.find(
 						Word.class,
@@ -383,6 +391,14 @@ public abstract class AbstractBot {
 			if (filereader != null)
 				filereader.close();
 		}
+	}
+	
+	/**
+	 * studyFromLineで新しく学習したtokenを返す。
+	 * @return 新しく学習したtoken
+	 */
+	protected List<Token> getNewTokens() {
+		return this.newTokens;
 	}
 
 	/**

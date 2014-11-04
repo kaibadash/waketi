@@ -18,9 +18,8 @@ public class FileStudyBot extends AbstractBot {
 
 	@Override
 	public void study(String file) throws PokoshoException {
-		try {
-			FileReader freader = new FileReader(file);
-			BufferedReader reader = new BufferedReader(freader);
+		try (FileReader freader = new FileReader(file);
+			BufferedReader reader = new BufferedReader(freader);) {
 			String line = null;
 			do {
 				line = reader.readLine();

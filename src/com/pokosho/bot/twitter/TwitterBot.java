@@ -8,6 +8,8 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
@@ -55,6 +57,12 @@ import com.pokosho.db.Pos;
 import com.pokosho.db.TableInfo;
 import com.pokosho.util.StringUtils;
 
+/**
+ * Twitterから学習し、ツイートするbotの実装
+ * 
+ * @author kaiba
+ *
+ */
 public class TwitterBot extends AbstractBot {
 	private static Logger log = LoggerFactory.getLogger(TwitterBot.class);
 	private static final String DB_PROP = "./conf/db.properties";
@@ -70,10 +78,15 @@ public class TwitterBot extends AbstractBot {
 	private static final int NUMBER_OF_DOCUMENT = 100000;
 	private static Set<String> NOT_TREND;
 	private static Set<String> spamWords;
-	private int maxReplyCountPerHour = 10;
-	private int maxReplyIntervalSec = 60 * 60;
 	private static final int MIN_TWEET_FOR_FOLLOW = 100;
 	private static final String SPAM_USER_LOG_LABEL = "spam user:";
+	private static final int MAX_TWEET_LENTGH = 140;
+	private static final int TREND_COUNT_MAX = 10;
+	private int maxReplyCountPerHour = 10;
+	private int maxReplyIntervalSec = 60 * 60;
+	// 1回の学習で新しく覚えたTokenのリスト
+	private List<Token> newTokensFromStudyOnce;
+
 	static {
 		NOT_TREND = new HashSet<String>();
 		NOT_TREND.add("の");
@@ -89,6 +102,7 @@ public class TwitterBot extends AbstractBot {
 	private String trendPath;
 	private String notTreacherPath;
 	private String spamWordsPath;
+	private String studyNewWordsFormat;
 	private User selfUser;
 
 	private static final String KEY_CONSUMER_KEY = "twitter.consumer.key";
@@ -100,6 +114,7 @@ public class TwitterBot extends AbstractBot {
 	private static final String KEY_MAX_REPLY_COUNT = "com.pokosho.max_reply_count";
 	private static final String KEY_REPLY_INTERVAL_MIN = "com.pokosho.max_reply_interval_sec";
 	private static final String KEY_SPAM_WORDS = "com.pokosho.spamwords";
+	private static final String KEY_STUDY_NEW_WORDS_FORMAT = "com.pokosho.study_new_words_format";
 
 	public TwitterBot(String dbPropPath, String botPropPath)
 			throws PokoshoException {
@@ -219,7 +234,8 @@ public class TwitterBot extends AbstractBot {
 		TwitterStreamFactory factory = new TwitterStreamFactory(conf);
 		TwitterStream twitterStream = factory.getInstance();
 		try {
-			twitterStream.addListener(new MentionEventListener(selfUser.getId()));
+			twitterStream
+					.addListener(new MentionEventListener(selfUser.getId()));
 		} catch (TwitterException e) {
 			throw new PokoshoException(e);
 		}
@@ -236,6 +252,7 @@ public class TwitterBot extends AbstractBot {
 		IDs friends;
 		IDs follower;
 		Map<String, Integer> trendCountMap = new HashMap<String, Integer>();
+		this.newTokensFromStudyOnce = new ArrayList<Token>();
 		log.info("start study ------------------------------------");
 		try {
 			// WORKファイルのタイムスタンプを見て、指定時間経っていたら、フォロー返しを実行
@@ -281,7 +298,8 @@ public class TwitterBot extends AbstractBot {
 						continue;
 					String tweet = s.getText();
 					if (TwitterUtils.isSpamTweet(tweet)) {
-						log.debug("spam:" + tweet + " user:" + s.getUser().getScreenName());
+						log.debug("spam:" + tweet + " user:"
+								+ s.getUser().getScreenName());
 						continue;
 					}
 					tweet = TwitterUtils.removeHashTags(tweet);
@@ -293,6 +311,7 @@ public class TwitterBot extends AbstractBot {
 					for (String msg : splited) {
 						// トレンド用の集計
 						List<Token> token = studyFromLine(msg);
+						this.newTokensFromStudyOnce.addAll(this.getNewTokens());
 						if (token != null && 0 < token.size()) {
 							for (Token t : token) {
 								if (StringUtils
@@ -390,8 +409,10 @@ public class TwitterBot extends AbstractBot {
 
 	private void loadProp(String propPath) throws PokoshoException {
 		Properties prop = new Properties();
-		try {
-			prop.load(new FileInputStream(propPath));
+		try (InputStream is = new FileInputStream(propPath);
+				InputStreamReader isr = new InputStreamReader(is, "UTF-8");
+				BufferedReader reader = new BufferedReader(isr)) {
+			prop.load(reader);
 			consumerKey = prop.getProperty(KEY_CONSUMER_KEY);
 			consumerSecret = prop.getProperty(KEY_CONSUMER_SECRET);
 			accessToken = prop.getProperty(KEY_ACCESS_TOKEN);
@@ -399,7 +420,7 @@ public class TwitterBot extends AbstractBot {
 			trendPath = prop.getProperty(KEY_TREND_PATH);
 			notTreacherPath = prop.getProperty(KEY_NOT_TEACHER_PATH);
 			spamWordsPath = prop.getProperty(KEY_SPAM_WORDS);
-
+			studyNewWordsFormat = prop.getProperty(KEY_STUDY_NEW_WORDS_FORMAT);
 			maxReplyCountPerHour = Integer.parseInt(prop
 					.getProperty(KEY_MAX_REPLY_COUNT));
 			maxReplyIntervalSec = Integer.parseInt(prop
@@ -494,8 +515,6 @@ public class TwitterBot extends AbstractBot {
 		return false;
 	}
 
-	private static final int TREND_COUNT_MAX = 10;
-
 	/**
 	 * トレンドを作成.
 	 *
@@ -541,6 +560,36 @@ public class TwitterBot extends AbstractBot {
 	}
 
 	/**
+	 * 新しく学習した単語をツイートする
+	 */
+	private void sayNewWords() {
+		if (this.newTokensFromStudyOnce == null
+				|| this.newTokensFromStudyOnce.size() == 0) {
+			log.info("no new words");
+			return;
+		}
+
+		StringBuilder sb = new StringBuilder();
+		for (Token t : this.newTokensFromStudyOnce) {
+			log.debug("sayNewWords:" + t.getSurfaceForm());
+			sb.append(t.getSurfaceForm());
+			sb.append('、');
+		}
+		sb.deleteCharAt(sb.length() - 1);
+		String newWordsTweet = String.format(this.studyNewWordsFormat,
+				sb.toString());
+		if (newWordsTweet != null && newWordsTweet.length() <= MAX_TWEET_LENTGH) {
+			try {
+				twitter.updateStatus(newWordsTweet);
+			} catch (TwitterException e) {
+				log.error("update status failed:", e);
+			}
+		} else {
+			log.warn("over tweet length:" + newWordsTweet);
+		}
+	}
+
+	/**
 	 * ホームタイムラインから学習し、1回ツイートします.
 	 *
 	 * @param args
@@ -563,13 +612,19 @@ public class TwitterBot extends AbstractBot {
 			} else {
 				b.study(null);
 				b.say();
-				// b.reply(); // streamingで行う -s
+				b.sayNewWords();
 			}
 		} catch (Exception e) {
 			log.error("system error", e);
 		}
 	}
 
+	/**
+	 * Mentionリスナ
+	 * 
+	 * @author kaiba
+	 *
+	 */
 	private class MentionEventListener extends UserStreamAdapter {
 		private long selfUser;
 		private String selfScreenName;

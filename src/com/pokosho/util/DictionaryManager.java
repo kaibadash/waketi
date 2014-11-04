@@ -17,28 +17,23 @@ public class DictionaryManager {
 	public void createDictionary() throws IOException {
 		File wikipediaTitleFile = null;
 		File dictFile = null;
-		FileReader filereader = null;
-		FileWriter fileWriter = null;
-		BufferedReader br = null;
-		BufferedWriter bw = null;
 		Pattern pattern = Pattern.compile("[가-힟]");
 
 		// 1288 名詞,固有名詞,一般,*,*,*,*
 		// 1289 名詞,固有名詞,人名,一般,*,*,*
-		try {
-			int count = 0;
+		try (FileReader filereader = new FileReader(wikipediaTitleFile);
+				BufferedReader br = new BufferedReader(filereader);
+				FileWriter fileWriter = new FileWriter(dictFile);
+				BufferedWriter bw = new BufferedWriter(fileWriter);) {
 			wikipediaTitleFile = new File(TITLE_FILE_PATH);
-			filereader = new FileReader(wikipediaTitleFile);
-			br = new BufferedReader(filereader);
-
 			dictFile = new File(DICT_FILE_PATH);
-			fileWriter = new FileWriter(dictFile);
-			bw = new BufferedWriter(fileWriter);
 			String title = br.readLine(); // skip first
 			// 「わけち」追加
-			String dictLine = "わけち" + ",1289,1289,4000,名詞,一般,*,*,*,*," + "わけち" + "," + "わけち" + "," + "わけち" + "\n";
+			String dictLine = "わけち" + ",1289,1289,4000,名詞,一般,*,*,*,*," + "わけち"
+					+ "," + "わけち" + "," + "わけち" + "\n";
 			bw.write(dictLine);
-			dictLine = "waketi" + ",1289,1289,4000,名詞,一般,*,*,*,*," + "わけち" + "," + "わけち" + "," + "わけち" + "\n";
+			dictLine = "waketi" + ",1289,1289,4000,名詞,一般,*,*,*,*," + "わけち"
+					+ "," + "わけち" + "," + "わけち" + "\n";
 			bw.write(dictLine);
 			while ((title = br.readLine()) != null) {
 				boolean skip = false;
@@ -59,18 +54,14 @@ public class DictionaryManager {
 					System.out.println("skiped:" + title);
 					continue;
 				}
-				count++;
 				// 川竹,1285,1285,5622,名詞,一般,*,*,*,*,川竹,カワタケ,カワタケ
-				dictLine = title + ",1288,1288,4000,名詞,一般,*,*,*,*," + title + "," + "*" + "," + "*" + "\n";
-				// System.out.print(count + " " + dictLine);
+				dictLine = title + ",1288,1288,4000,名詞,一般,*,*,*,*," + title
+						+ "," + "*" + "," + "*" + "\n";
 				bw.write(dictLine);
 
-			} while (title != null);
-		} finally {
-			if (bw != null) bw.close();
-			if (br != null) br.close();
-			if (filereader != null) filereader.close();
-			if (fileWriter != null) fileWriter.close();
+			}
+			while (title != null)
+				;
 		}
 	}
 
