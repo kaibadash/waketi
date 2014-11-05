@@ -13,7 +13,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.StringTokenizer;
 
 import net.java.ao.DBParam;
 import net.java.ao.EntityManager;
@@ -146,7 +145,8 @@ public abstract class AbstractBot {
 				// 名詞でtf-idfが高い言葉
 				Pos tPos = StringUtils.toPos(t.getAllFeaturesArray()[StringUtils.KUROMOJI_POS_INDEX]);
 				if (tPos == Pos.Noun) {
-					double tdidf = calculateTFIDF(from , t.getSurfaceForm(), numberOfDocuments);
+					double tdidf = TFIDF.calculateTFIDF(manager, from,
+							t.getSurfaceForm(), numberOfDocuments);
 					if (maxTFIDF < tdidf) {
 						maxTFIDF = tdidf;
 						keyword = t;
@@ -238,6 +238,7 @@ public abstract class AbstractBot {
 			log.debug("it's not Japanese");
 			return null;
 		}
+		// TODO:AbstractBoxにTweetの処理が来るのはおかしい… TwitterBotでやるべき
 		if (TwitterUtils.isSpamTweet(str)) {
 			log.debug("spam tweet:" + str);
 			return null;
@@ -540,37 +541,5 @@ public abstract class AbstractBot {
 		return result.toString();
 	}
 
-	private double calculateTFIDF(String tweet, String keyword, long numberOfDocuments) throws SQLException {
-		// tf:テキスト中の出現回数(tweetなのでほとんど1)
-		StringTokenizer st = new StringTokenizer(tweet, keyword);
-		int tf = st.countTokens() - 1;
-		if (tf == 0) {
-			tf = 1;
-		} else {
-			if (tweet.startsWith(keyword)) {
-				tf++;
-			} else if (tweet.endsWith(keyword)) {
-				tf++;
-			}
-		}
-		if (tf < 1) {
-			log.error("can't find keyword(" + keyword +") in tweet(" + tweet + ")");
-			return 0; // tweetにキーワードがない
-		}
-		// df:キーワードを含むdocument数
-		Word[] word = manager.find(Word.class,  Query.select().where(TableInfo.TABLE_WORD_WORD + "=?", keyword));
-		if (word.length == 0) {
-			log.debug("can't find keyword(" + keyword + "). TFIDF=0");
-			return 0;
-		}
-		int df = word[0].getWord_Count();
-		if (df == 0) {
-			log.debug("keyword count(" + keyword + ") is 0. TFIDF=0");
-			return 0;
-		}
-		// calculate TF-IDF
-		double tfidf = tf * Math.log(numberOfDocuments/df);
-		log.debug("tfidf=" + tfidf + " keyword(" + keyword +") in tweet(" + tweet + ")");
-		return tfidf;
-	}
+	
 }

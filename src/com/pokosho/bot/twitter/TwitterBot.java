@@ -52,6 +52,7 @@ import twitter4j.conf.ConfigurationBuilder;
 
 import com.pokosho.PokoshoException;
 import com.pokosho.bot.AbstractBot;
+import com.pokosho.bot.TFIDF;
 import com.pokosho.dao.Reply;
 import com.pokosho.db.Pos;
 import com.pokosho.db.TableInfo;
@@ -74,6 +75,7 @@ public class TwitterBot extends AbstractBot {
 	private static final String WORK_LAST_FOLLOW_FILE = "waketi_last_follow.txt";
 	private static final int FOLLOW_INTERVAL_MSEC = 60 * 60 * 3 * 1000; // フォロー返しの間隔
 	private static final int STATUS_MAX_COUNT = 200;
+	private static final boolean streamMode = true;
 	// TF-IDFのN. 以前のコストと比較するわけではないので定数で良い
 	private static final int NUMBER_OF_DOCUMENT = 100000;
 	private static Set<String> NOT_TREND;
@@ -103,6 +105,7 @@ public class TwitterBot extends AbstractBot {
 	private String notTreacherPath;
 	private String spamWordsPath;
 	private String studyNewWordsFormat;
+	private int studyNewWordsCost = 0;
 	private User selfUser;
 
 	private static final String KEY_CONSUMER_KEY = "twitter.consumer.key";
@@ -115,6 +118,7 @@ public class TwitterBot extends AbstractBot {
 	private static final String KEY_REPLY_INTERVAL_MIN = "com.pokosho.max_reply_interval_sec";
 	private static final String KEY_SPAM_WORDS = "com.pokosho.spamwords";
 	private static final String KEY_STUDY_NEW_WORDS_FORMAT = "com.pokosho.study_new_words_format";
+	private static final String KEY_STUDY_NEW_WORDS_COST = "com.pokosho.study_new_words_cost";
 
 	public TwitterBot(String dbPropPath, String botPropPath)
 			throws PokoshoException {
@@ -153,8 +157,6 @@ public class TwitterBot extends AbstractBot {
 		}
 		return s;
 	}
-
-	private static final boolean streamMode = true;
 
 	public void reply() throws PokoshoException {
 		if (streamMode) {
@@ -421,6 +423,7 @@ public class TwitterBot extends AbstractBot {
 			notTreacherPath = prop.getProperty(KEY_NOT_TEACHER_PATH);
 			spamWordsPath = prop.getProperty(KEY_SPAM_WORDS);
 			studyNewWordsFormat = prop.getProperty(KEY_STUDY_NEW_WORDS_FORMAT);
+			studyNewWordsCost = Integer.parseInt(prop.getProperty(KEY_STUDY_NEW_WORDS_COST));
 			maxReplyCountPerHour = Integer.parseInt(prop
 					.getProperty(KEY_MAX_REPLY_COUNT));
 			maxReplyIntervalSec = Integer.parseInt(prop
@@ -561,18 +564,28 @@ public class TwitterBot extends AbstractBot {
 
 	/**
 	 * 新しく学習した単語をツイートする
+	 * @throws SQLException 
 	 */
-	private void sayNewWords() {
-		if (this.newTokensFromStudyOnce == null
-				|| this.newTokensFromStudyOnce.size() == 0) {
+	private void sayNewWords() throws SQLException {
+		if (this.newTokensFromStudyOnce == null ||
+				this.newTokensFromStudyOnce.size() == 0) {
 			log.info("no new words");
 			return;
 		}
 
 		StringBuilder sb = new StringBuilder();
 		for (Token t : this.newTokensFromStudyOnce) {
-			log.debug("sayNewWords:" + t.getSurfaceForm());
-			sb.append(t.getSurfaceForm());
+			String word = t.getSurfaceForm();
+			// 名詞以外は新しく覚えたよツイートしない
+			if (StringUtils.toPos(t.getAllFeaturesArray()[StringUtils.KUROMOJI_POS_INDEX]) != Pos.Noun) {
+				return;
+			}
+			double tfidf = TFIDF.calculateTFIDF(AbstractBot.manager, null, t.getSurfaceForm(), NUMBER_OF_DOCUMENT);
+			log.debug("sayNewWords:" + t.getSurfaceForm() + " tfidf cost:" + tfidf);
+			if (tfidf < this.studyNewWordsCost) {
+				log.debug("it isn't a important word:" + word);
+			}
+			sb.append(word);
 			sb.append('、');
 		}
 		sb.deleteCharAt(sb.length() - 1);
