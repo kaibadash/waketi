@@ -38,30 +38,33 @@ public class TwitterUtils {
 
 	public static String removeHashTags(String str) {
 		Matcher matcher = HASHTAG_PATTERN.matcher(str);
-		return matcher.replaceAll("");
+		return matcher.replaceAll("").trim();
 	}
 
 	public static String removeUrl(String str) {
 		Matcher matcher = URL_PATTERN.matcher(str);
-		return matcher.replaceAll("");
+		return matcher.replaceAll("").trim();
 	}
 
 	public static String removeMention(String str) {
 		Matcher matcher = MENTION_PATTERN.matcher(str);
-		return matcher.replaceAll("");
+		return matcher.replaceAll("").trim();
 	}
 
 	public static String removeRTString(String str) {
 		String res = str.replaceAll(RT_STR, "");
-		res = res.replaceAll(QT_STR, "");
-		return res;
+		return res.replaceAll(QT_STR, "").trim();
 	}
 
 	public static boolean isSpamTweet(String tweet) {
 		if (tweet.contains(FOUR_SQ_URL))
 			return true;
-		if (containsKR(tweet))
+		if (containsKR(tweet)) {
 			return true;
+		}
+		if (containsSurrogatePair(tweet)) {
+			return true;
+		}
 		return false;
 	}
 
@@ -73,6 +76,15 @@ public class TwitterUtils {
 	public static boolean containsKR(String tweet) {
 		Matcher matcher = HANGUL_PATTERN.matcher(tweet);
 		return matcher.find();
+	}
+	
+	public static boolean containsSurrogatePair(String tweet) {
+		for (char c : tweet.toCharArray()) {
+			if (Character.isLowSurrogate(c) || Character.isHighSurrogate(c)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	public static boolean isAlnum(char c) {
