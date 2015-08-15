@@ -18,11 +18,11 @@ import net.java.ao.DBParam;
 import net.java.ao.EntityManager;
 import net.java.ao.Query;
 
-import org.atilika.kuromoji.Token;
-import org.atilika.kuromoji.Tokenizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.atilika.kuromoji.ipadic.Token;
+import com.atilika.kuromoji.ipadic.Tokenizer;
 import com.pokosho.PokoshoException;
 import com.pokosho.bot.twitter.TwitterUtils;
 import com.pokosho.dao.Chain;
@@ -30,7 +30,6 @@ import com.pokosho.dao.Word;
 import com.pokosho.db.DBUtil;
 import com.pokosho.db.Pos;
 import com.pokosho.db.TableInfo;
-import com.pokosho.util.DictionaryManager;
 import com.pokosho.util.StrRep;
 import com.pokosho.util.StringUtils;
 
@@ -48,19 +47,6 @@ public abstract class AbstractBot {
 
 	public AbstractBot(String dbPropPath, String botPropPath)
 			throws PokoshoException {
-		try {
-			if (new File(DictionaryManager.DICT_FILE_PATH).exists()) {
-				tokenizer = Tokenizer.builder().userDictionary(DictionaryManager.DICT_FILE_PATH).build();
-			} else {
-				tokenizer = Tokenizer.builder().build();
-			}
-		} catch (FileNotFoundException e2) {
-			log.error("user dictionary is not found", e2);
-			throw new PokoshoException(e2);
-		} catch (IOException e2) {
-			log.error("can't open user dictionary", e2);
-			throw new PokoshoException(e2);
-		}
 		prop = new Properties();
 		log.debug("dbPropPath:" + dbPropPath);
 		log.debug("botPropPath:" + botPropPath);
@@ -80,6 +66,20 @@ public abstract class AbstractBot {
 			log.error("system error", e);
 			throw new PokoshoException(e);
 		}
+		this.tokenizer = this.loadTokenizer(prop.getProperty("com.pokosho.custom_dic"));
+	}
+	
+	private Tokenizer loadTokenizer(String pathToCustomDictionary) throws PokoshoException {
+		try {
+			tokenizer = new Tokenizer.Builder().userDictionary(
+					new FileInputStream(pathToCustomDictionary)).build();
+		} catch (IOException ioe) {
+			log.debug("failed to load cutom dictionary. use default tokenizer.", ioe);
+		}
+		if (tokenizer == null) {
+			tokenizer = new Tokenizer();
+		}
+		return tokenizer;
 	}
 
 	/**
@@ -126,7 +126,8 @@ public abstract class AbstractBot {
 	 *            返信元メッセージ.
 	 * @return 返事.
 	 */
-	public synchronized String say(String from, int numberOfDocuments) throws PokoshoException {
+	public synchronized String say(String from, int numberOfDocuments)
+			throws PokoshoException {
 		try {
 			log.debug("reply base:" + from);
 			from = StringUtils.simplizeForReply(from);
@@ -141,9 +142,11 @@ public abstract class AbstractBot {
 			Token keyword = null;
 			Token maxNounCountToken = null;
 			for (Token t : token) {
-				log.debug("surface:" + t.getSurfaceForm() + " features:" + t.getAllFeatures());
+				log.debug("surface:" + t.getSurfaceForm() + " features:"
+						+ t.getAllFeatures());
 				// 名詞でtf-idfが高い言葉
-				Pos tPos = StringUtils.toPos(t.getAllFeaturesArray()[StringUtils.KUROMOJI_POS_INDEX]);
+				Pos tPos = StringUtils
+						.toPos(t.getAllFeaturesArray()[StringUtils.KUROMOJI_POS_INDEX]);
 				if (tPos == Pos.Noun) {
 					double tdidf = TFIDF.calculateTFIDF(manager, from,
 							t.getSurfaceForm(), numberOfDocuments);
@@ -152,7 +155,7 @@ public abstract class AbstractBot {
 						keyword = t;
 					}
 					// 出現回数のカウント
-					if(!tokenCount.containsKey(t.getSurfaceForm())) {
+					if (!tokenCount.containsKey(t.getSurfaceForm())) {
 						tokenCount.put(t.getSurfaceForm(), 1);
 					} else {
 						int c = tokenCount.get(t.getSurfaceForm()) + 1;
@@ -170,14 +173,17 @@ public abstract class AbstractBot {
 			if (0 < maxTFIDF) {
 				word = manager.find(
 						Word.class,
-						Query.select().where(TableInfo.TABLE_WORD_WORD + " = ?",
+						Query.select().where(
+								TableInfo.TABLE_WORD_WORD + " = ?",
 								keyword.getSurfaceForm()));
 			}
 			if ((word == null || word.length == 0) && maxNounCountToken != null) {
-				log.debug("keyword isn't found. use max count token:" + maxNounCountToken.getSurfaceForm());
+				log.debug("keyword isn't found. use max count token:"
+						+ maxNounCountToken.getSurfaceForm());
 				word = manager.find(
 						Word.class,
-						Query.select().where(TableInfo.TABLE_WORD_WORD + " = ?",
+						Query.select().where(
+								TableInfo.TABLE_WORD_WORD + " = ?",
 								maxNounCountToken.getSurfaceForm()));
 			}
 			if (word == null || word.length == 0) {
@@ -190,14 +196,16 @@ public abstract class AbstractBot {
 					Chain.class,
 					Query.select().where(
 							TableInfo.TABLE_CHAIN_START + " = ? and "
-									+ TableInfo.TABLE_CHAIN_PREFIX01 + " = ?  order by rand() limit 1",
-							true, word[0].getWord_ID()));
+									+ TableInfo.TABLE_CHAIN_PREFIX01
+									+ " = ?  order by rand() limit 1", true,
+							word[0].getWord_ID()));
 			boolean startWithMaxCountWord = false;
 			if (chain == null || chain.length == 0) {
 				chain = manager.find(
 						Chain.class,
 						Query.select().where(
-								TableInfo.TABLE_CHAIN_PREFIX01 + " = ?  order by rand() limit 1",
+								TableInfo.TABLE_CHAIN_PREFIX01
+										+ " = ?  order by rand() limit 1",
 								word[0].getWord_ID()));
 				if (chain == null || chain.length == 0) {
 					// まずあり得ないが保険
@@ -219,8 +227,14 @@ public abstract class AbstractBot {
 			String result = createWordsFromIDList(idList);
 			result = strRep.rep(result);
 
-			log.info(from + " => " + result + " tfidf:" +	(keyword != null ? keyword.getSurfaceForm():"null") +
-					" max noun count:" + (maxNounCountToken != null ? maxNounCountToken.getSurfaceForm() : "null"));
+			log.info(from
+					+ " => "
+					+ result
+					+ " tfidf:"
+					+ (keyword != null ? keyword.getSurfaceForm() : "null")
+					+ " max noun count:"
+					+ (maxNounCountToken != null ? maxNounCountToken
+							.getSurfaceForm() : "null"));
 			return result;
 		} catch (SQLException e) {
 			throw new PokoshoException(e);
@@ -263,14 +277,15 @@ public abstract class AbstractBot {
 				Word newWord = manager.create(Word.class);
 				newWord.setWord(token.get(i).getSurfaceForm());
 				newWord.setWord_Count(1);
-				newWord.setPos_ID((int) StringUtils.toPos(token.get(i).getAllFeaturesArray()[StringUtils.KUROMOJI_POS_INDEX])
+				newWord.setPos_ID((int) StringUtils
+						.toPos(token.get(i).getAllFeaturesArray()[StringUtils.KUROMOJI_POS_INDEX])
 						.getIntValue());
 				newWord.setTime((int) (System.currentTimeMillis() / 1000));
 				newWord.save();
-				
+
 				// 新しく学習した単語を保持
 				this.newTokens.add(token.get(i));
-				
+
 				// IDを取得
 				existWord = manager.find(
 						Word.class,
@@ -393,9 +408,10 @@ public abstract class AbstractBot {
 				filereader.close();
 		}
 	}
-	
+
 	/**
 	 * studyFromLineで新しく学習したtokenを返す。
+	 * 
 	 * @return 新しく学習したtoken
 	 */
 	protected List<Token> getNewTokens() {
@@ -527,7 +543,9 @@ public abstract class AbstractBot {
 			}
 			// April Fool
 			if (APRIL_FOOL) {
-				if (!useChikuwa && words[0].getPos_ID() == Pos.Noun.getIntValue() && Math.random() < 0.3) {
+				if (!useChikuwa
+						&& words[0].getPos_ID() == Pos.Noun.getIntValue()
+						&& Math.random() < 0.3) {
 					useChikuwa = true;
 					result.append("チクワ");
 				} else {
@@ -540,6 +558,4 @@ public abstract class AbstractBot {
 		}
 		return result.toString();
 	}
-
-	
 }

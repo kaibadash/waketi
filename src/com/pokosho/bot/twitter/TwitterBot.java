@@ -31,7 +31,6 @@ import net.arnx.jsonic.JSON;
 import net.java.ao.DBParam;
 import net.java.ao.Query;
 
-import org.atilika.kuromoji.Token;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,6 +49,7 @@ import twitter4j.UserStreamAdapter;
 import twitter4j.conf.Configuration;
 import twitter4j.conf.ConfigurationBuilder;
 
+import com.atilika.kuromoji.ipadic.Token;
 import com.pokosho.PokoshoException;
 import com.pokosho.bot.AbstractBot;
 import com.pokosho.bot.TFIDF;
@@ -60,9 +60,7 @@ import com.pokosho.util.StringUtils;
 
 /**
  * Twitterから学習し、ツイートするbotの実装
- * 
  * @author kaiba
- *
  */
 public class TwitterBot extends AbstractBot {
 	private static Logger log = LoggerFactory.getLogger(TwitterBot.class);
@@ -545,7 +543,6 @@ public class TwitterBot extends AbstractBot {
 					+ entry.getValue());
 		}
 		String json = JSON.encode(trends);
-		log.debug("trend json:" + json);
 		// output to file
 		FileWriter fw = null;
 		try {

@@ -2,10 +2,10 @@
 <configuration>
 	<appender name="FILE" class="ch.qos.logback.core.FileAppender">
 		<!-- ファイル名 -->
-		<file>waketi.log</file>
+		<file>logs/waketi.log</file>
 		<Encoding>UTF-8</Encoding>
 		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-			<FileNamePattern>logs/logFile.%d{yyyy-MM-dd}.log</FileNamePattern>
+			<FileNamePattern>logs/waketi.%d{yyyy-MM-dd}.log</FileNamePattern>
 			<MaxHistory>7</MaxHistory>
 		</rollingPolicy>
 		<layout class="ch.qos.logback.classic.PatternLayout">
@@ -40,7 +40,7 @@
 	<!-- ログ出力に関する設定 -->
 	<root>
 		<!-- 出力するレベルを設定 -->
-		<level value="debug" />
+		<level value="info" />
 
 		<!-- アペンダを設定
 		<appender-ref ref="FILE" />
