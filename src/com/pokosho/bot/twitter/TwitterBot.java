@@ -27,6 +27,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.mchange.v1.lang.BooleanUtils;
 import net.arnx.jsonic.JSON;
 import net.java.ao.DBParam;
 import net.java.ao.Query;
@@ -104,6 +105,7 @@ public class TwitterBot extends AbstractBot {
 	private String spamWordsPath;
 	private String studyNewWordsFormat;
 	private int studyNewWordsCost = 0;
+	private boolean studyNewWordsSay = false;
 	private User selfUser;
 
 	private static final String KEY_CONSUMER_KEY = "twitter.consumer.key";
@@ -117,6 +119,7 @@ public class TwitterBot extends AbstractBot {
 	private static final String KEY_SPAM_WORDS = "com.pokosho.spamwords";
 	private static final String KEY_STUDY_NEW_WORDS_FORMAT = "com.pokosho.study_new_words_format";
 	private static final String KEY_STUDY_NEW_WORDS_COST = "com.pokosho.study_new_words_cost";
+	private static final String KEY_STUDY_NEW_WORDS_SAY = "com.pokosho.study_new_words_say";
 
 	public TwitterBot(String dbPropPath, String botPropPath)
 			throws PokoshoException {
@@ -217,6 +220,10 @@ public class TwitterBot extends AbstractBot {
 				new PokoshoException(e);
 			}
 		}
+	}
+
+	public boolean studyNewWordsEnabled() {
+		return studyNewWordsSay;
 	}
 
 	/**
@@ -422,6 +429,7 @@ public class TwitterBot extends AbstractBot {
 			spamWordsPath = prop.getProperty(KEY_SPAM_WORDS);
 			studyNewWordsFormat = prop.getProperty(KEY_STUDY_NEW_WORDS_FORMAT);
 			studyNewWordsCost = Integer.parseInt(prop.getProperty(KEY_STUDY_NEW_WORDS_COST));
+			studyNewWordsSay = Integer.parseInt(prop.getProperty(KEY_STUDY_NEW_WORDS_SAY)) == 1;
 			maxReplyCountPerHour = Integer.parseInt(prop
 					.getProperty(KEY_MAX_REPLY_COUNT));
 			maxReplyIntervalSec = Integer.parseInt(prop
@@ -622,7 +630,9 @@ public class TwitterBot extends AbstractBot {
 			} else {
 				b.study(null);
 				b.say();
-				b.sayNewWords();
+				if (b.studyNewWordsSay) {
+					b.sayNewWords();
+				}
 			}
 		} catch (Exception e) {
 			log.error("system error", e);
