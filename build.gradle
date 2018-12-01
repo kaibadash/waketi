@@ -1,0 +1,34 @@
+plugins {
+    id 'org.jetbrains.kotlin.jvm' version '1.3.10'
+}
+
+group 'com.pokosho'
+version '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+    maven {
+        url 'https://packages.atlassian.com/maven-public'
+    }
+    maven {
+        url "http://www.atilika.org/nexus/content/repositories/atilika"
+    }
+}
+
+dependencies {
+    compile 'org.jetbrains.kotlin:kotlin-stdlib-jdk8'
+    compile 'org.twitter4j:twitter4j-core:4.0.7'
+    compile 'net.arnx:jsonic:1.3.10'
+    compile 'org.junit.jupiter:junit-jupiter-api:5.3.2'
+    compile 'org.slf4j:slf4j-log4j12:1.7.25'
+    compile 'com.atlassian.activeobjects:activeobjects-plugin:3.0.0-22a6ef4'
+    compile 'com.google.collections:google-collections:1.0'
+    compile "com.atilika.kuromoji:kuromoji-ipadic:0.9.0"
+}
+
+compileKotlin {
+    kotlinOptions.jvmTarget = '1.8'
+}
+compileTestKotlin {
+    kotlinOptions.jvmTarget = '1.8'
+}

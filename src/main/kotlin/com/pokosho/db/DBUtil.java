@@ -8,8 +8,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.pokosho.PokoshoException;
-
 import net.java.ao.EntityManager;
+import net.java.ao.builder.EntityManagerBuilder;
+
 
 public class DBUtil {
 	private static EntityManager manager;
@@ -24,8 +25,13 @@ public class DBUtil {
 	public static EntityManager getEntityManager(String propPath) throws PokoshoException {
 		if (manager == null) {
 			loadProp(propPath);
-			//manager = new EntityManager("jdbc:hsqldb:hsql://localhost", "sa", "");
-			manager = new EntityManager(dbUri, dbUser, dbPassword);
+
+			manager = EntityManagerBuilder
+					.url(dbUri)
+					.username(dbUser)
+					.password(dbPassword)
+					.auto()
+					.build();
 
 			// ActiveObjects のロガーを取得
 			Logger logger = Logger.getLogger("net.java.ao");

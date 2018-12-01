@@ -27,7 +27,6 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.mchange.v1.lang.BooleanUtils;
 import net.arnx.jsonic.JSON;
 import net.java.ao.DBParam;
 import net.java.ao.Query;
@@ -324,19 +323,19 @@ public class TwitterBot extends AbstractBot {
 								if (StringUtils
 										.toPos(t.getAllFeaturesArray()[StringUtils.KUROMOJI_POS_INDEX]) == Pos.Noun
 										&& TwitterUtils.containsJPN(t
-												.getSurfaceForm())
+												.getSurface())
 										&& !NOT_TREND.contains(t
-												.getSurfaceForm())
-										&& 1 < t.getSurfaceForm().length()) {
+												.getSurface())
+										&& 1 < t.getSurface().length()) {
 									int count = 0;
 									if (trendCountMap.containsKey(t
-											.getSurfaceForm())) {
+											.getSurface())) {
 										count = trendCountMap.get(t
-												.getSurfaceForm());
+												.getSurface());
 									}
 									count++;
 									trendCountMap
-											.put(t.getSurfaceForm(), count);
+											.put(t.getSurface(), count);
 								}
 							}
 						}
@@ -580,13 +579,13 @@ public class TwitterBot extends AbstractBot {
 
 		StringBuilder sb = new StringBuilder();
 		for (Token t : this.newTokensFromStudyOnce) {
-			String word = t.getSurfaceForm();
+			String word = t.getSurface();
 			// 名詞以外は新しく覚えたよツイートしない
 			if (StringUtils.toPos(t.getAllFeaturesArray()[StringUtils.KUROMOJI_POS_INDEX]) != Pos.Noun) {
 				return;
 			}
-			double tfidf = TFIDF.calculateTFIDF(AbstractBot.manager, null, t.getSurfaceForm(), NUMBER_OF_DOCUMENT);
-			log.debug("sayNewWords:" + t.getSurfaceForm() + " tfidf cost:" + tfidf);
+			double tfidf = TFIDF.calculateTFIDF(AbstractBot.manager, null, t.getSurface(), NUMBER_OF_DOCUMENT);
+			log.debug("sayNewWords:" + t.getSurface() + " tfidf cost:" + tfidf);
 			if (tfidf < this.studyNewWordsCost) {
 				log.debug("it isn't a important word:" + word);
 			}

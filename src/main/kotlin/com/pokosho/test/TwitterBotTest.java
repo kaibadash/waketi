@@ -1,17 +1,15 @@
 package com.pokosho.test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
-
 import java.lang.reflect.Method;
 import java.util.List;
-
-import org.junit.Test;
 
 import com.atilika.kuromoji.ipadic.Token;
 import com.atilika.kuromoji.ipadic.Tokenizer;
 import com.pokosho.bot.AbstractBot;
 import com.pokosho.bot.twitter.TwitterBot;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 public class TwitterBotTest {
 	/**
@@ -28,9 +26,9 @@ public class TwitterBotTest {
 			Tokenizer tokenizer = (Tokenizer) method
 					.invoke(bot, "./src/com/pokosho/test/custom_dic.txt");
 			List<Token> tokenList = tokenizer.tokenize("わけちはハイパーちくわ");
-			assertEquals("わけち", tokenList.get(0).getSurfaceForm());
-			assertEquals("は", tokenList.get(1).getSurfaceForm());
-			assertEquals("ハイパーちくわ", tokenList.get(2).getSurfaceForm());
+			assertEquals("わけち", tokenList.get(0).getSurface());
+			assertEquals("は", tokenList.get(1).getSurface());
+			assertEquals("ハイパーちくわ", tokenList.get(2).getSurface());
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.toString());
@@ -50,9 +48,9 @@ public class TwitterBotTest {
 			Tokenizer tokenizer = (Tokenizer) method
 					.invoke(bot, "");
 			List<Token> tokenList = tokenizer.tokenize("関西国際空港は近い");
-			assertEquals("関西国際空港", tokenList.get(0).getSurfaceForm());
-			assertEquals("は", tokenList.get(1).getSurfaceForm());
-			assertEquals("近い", tokenList.get(2).getSurfaceForm());
+			assertEquals("関西国際空港", tokenList.get(0).getSurface());
+			assertEquals("は", tokenList.get(1).getSurface());
+			assertEquals("近い", tokenList.get(2).getSurface());
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.toString());

@@ -142,26 +142,26 @@ public abstract class AbstractBot {
 			Token keyword = null;
 			Token maxNounCountToken = null;
 			for (Token t : token) {
-				log.debug("surface:" + t.getSurfaceForm() + " features:"
+				log.debug("surface:" + t.getSurface() + " features:"
 						+ t.getAllFeatures());
 				// 名詞でtf-idfが高い言葉
 				Pos tPos = StringUtils
 						.toPos(t.getAllFeaturesArray()[StringUtils.KUROMOJI_POS_INDEX]);
 				if (tPos == Pos.Noun) {
 					double tdidf = TFIDF.calculateTFIDF(manager, from,
-							t.getSurfaceForm(), numberOfDocuments);
+							t.getSurface(), numberOfDocuments);
 					if (maxTFIDF < tdidf) {
 						maxTFIDF = tdidf;
 						keyword = t;
 					}
 					// 出現回数のカウント
-					if (!tokenCount.containsKey(t.getSurfaceForm())) {
-						tokenCount.put(t.getSurfaceForm(), 1);
+					if (!tokenCount.containsKey(t.getSurface())) {
+						tokenCount.put(t.getSurface(), 1);
 					} else {
-						int c = tokenCount.get(t.getSurfaceForm()) + 1;
+						int c = tokenCount.get(t.getSurface()) + 1;
 						if (maxCount < c) {
 							maxCount = c;
-							tokenCount.put(t.getSurfaceForm(), c);
+							tokenCount.put(t.getSurface(), c);
 							maxNounCountToken = t;
 						}
 					}
@@ -175,16 +175,16 @@ public abstract class AbstractBot {
 						Word.class,
 						Query.select().where(
 								TableInfo.TABLE_WORD_WORD + " = ?",
-								keyword.getSurfaceForm()));
+								keyword.getSurface()));
 			}
 			if ((word == null || word.length == 0) && maxNounCountToken != null) {
 				log.debug("keyword isn't found. use max count token:"
-						+ maxNounCountToken.getSurfaceForm());
+						+ maxNounCountToken.getSurface());
 				word = manager.find(
 						Word.class,
 						Query.select().where(
 								TableInfo.TABLE_WORD_WORD + " = ?",
-								maxNounCountToken.getSurfaceForm()));
+								maxNounCountToken.getSurface()));
 			}
 			if (word == null || word.length == 0) {
 				log.debug("keyword isn't found. can't reply.");
@@ -231,10 +231,10 @@ public abstract class AbstractBot {
 					+ " => "
 					+ result
 					+ " tfidf:"
-					+ (keyword != null ? keyword.getSurfaceForm() : "null")
+					+ (keyword != null ? keyword.getSurface() : "null")
 					+ " max noun count:"
 					+ (maxNounCountToken != null ? maxNounCountToken
-							.getSurfaceForm() : "null"));
+							.getSurface() : "null"));
 			return result;
 		} catch (SQLException e) {
 			throw new PokoshoException(e);
@@ -267,15 +267,15 @@ public abstract class AbstractBot {
 		// chainを作成する。
 		// chainの作成確認のため、拡張for文は使わない。
 		for (int i = 0; i < token.size(); i++) {
-			log.debug(token.get(i).getSurfaceForm());
+			log.debug(token.get(i).getSurface());
 			Word[] existWord = manager.find(
 					Word.class,
 					Query.select().where(TableInfo.TABLE_WORD_WORD + " = ?",
-							token.get(i).getSurfaceForm()));
+							token.get(i).getSurface()));
 			if (existWord == null || existWord.length == 0) {
 				// 新規作成
 				Word newWord = manager.create(Word.class);
-				newWord.setWord(token.get(i).getSurfaceForm());
+				newWord.setWord(token.get(i).getSurface());
 				newWord.setWord_Count(1);
 				newWord.setPos_ID((int) StringUtils
 						.toPos(token.get(i).getAllFeaturesArray()[StringUtils.KUROMOJI_POS_INDEX])
@@ -291,7 +291,7 @@ public abstract class AbstractBot {
 						Word.class,
 						Query.select().where(
 								TableInfo.TABLE_WORD_WORD + " = ?",
-								token.get(i).getSurfaceForm()));
+								token.get(i).getSurface()));
 				// createで作っている時点でIDは分かるので無駄…
 			} else {
 				existWord[0].setWord_Count(existWord[0].getWord_Count() + 1);
