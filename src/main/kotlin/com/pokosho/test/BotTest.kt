@@ -1,12 +1,10 @@
 package com.pokosho.test
 
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
-
 import com.pokosho.PokoshoException
 import com.pokosho.bot.FileStudyBot
 import com.pokosho.bot.twitter.TwitterBot
 import com.pokosho.util.StringUtils
+import org.slf4j.LoggerFactory
 
 object BotTest {
     private val log = LoggerFactory.getLogger(BotTest::class.java)

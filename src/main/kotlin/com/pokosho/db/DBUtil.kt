@@ -1,15 +1,14 @@
 package com.pokosho.db
 
-import java.io.FileInputStream
-import java.io.FileNotFoundException
-import java.io.IOException
-import java.util.Properties
-import java.util.logging.Level
-import java.util.logging.Logger
-
 import com.pokosho.PokoshoException
 import net.java.ao.EntityManager
 import net.java.ao.builder.EntityManagerBuilder
+import java.io.FileInputStream
+import java.io.FileNotFoundException
+import java.io.IOException
+import java.util.*
+import java.util.logging.Level
+import java.util.logging.Logger
 
 
 object DBUtil {
@@ -25,9 +24,9 @@ object DBUtil {
         @Throws(PokoshoException::class)
         get() {
             if (manager == null) {
-                throw PokoshoException("EntityManager isn't loaded.")
+                throw PokoshoException("EntityManager was not loaded.")
             }
-            return manager
+            return manager!!
         }
 
     @Throws(PokoshoException::class)
@@ -38,7 +37,7 @@ object DBUtil {
             manager = EntityManagerBuilder
                 .url(dbUri)
                 .username(dbUser)
-                .password(dbPassword!!)
+                .password(dbPassword)
                 .auto()
                 .build()
 
@@ -47,7 +46,7 @@ object DBUtil {
             // ログレベルの設定
             logger.level = Level.WARNING
         }
-        return manager
+        return manager!!
     }
 
     @Throws(PokoshoException::class)
@@ -65,6 +64,5 @@ object DBUtil {
             e.printStackTrace()
             throw PokoshoException(e)
         }
-
     }
 }

@@ -1,15 +1,12 @@
 package com.pokosho.bot.twitter
 
+import org.slf4j.LoggerFactory
 import java.io.BufferedReader
 import java.io.FileNotFoundException
 import java.io.FileReader
 import java.io.IOException
-import java.util.HashSet
-import java.util.regex.Matcher
+import java.util.*
 import java.util.regex.Pattern
-
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 
 /**
  * Twitter関連Utilクラス
@@ -109,10 +106,12 @@ object TwitterUtils {
         try {
             reader = FileReader(notTeachersFile)
             br = BufferedReader(reader)
-            var line: String
-            while ((line = br.readLine()) != null) {
+            var line: String?
+            do {
+                line = br.readLine()
+                if (line == null) break;
                 notTeacher.add(java.lang.Long.parseLong(line))
-            }
+            } while (line != null)
         } catch (e: NumberFormatException) {
             log.error("getNotTeachers error", e)
         } catch (e: FileNotFoundException) {
@@ -138,10 +137,11 @@ object TwitterUtils {
         try {
             reader = FileReader(filePath)
             br = BufferedReader(reader)
-            var line: String
-            while ((line = br.readLine()) != null) {
+            var line: String?
+            do {
+                line = br.readLine()
                 stringSet.add(line)
-            }
+            } while (line != null)
         } catch (e: NumberFormatException) {
             log.error("format error", e)
         } catch (e: FileNotFoundException) {

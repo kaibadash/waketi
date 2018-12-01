@@ -1,18 +1,13 @@
 package com.pokosho.util
 
+import com.pokosho.PokoshoException
+import org.slf4j.LoggerFactory
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileReader
 import java.io.IOException
-import java.util.Enumeration
-import java.util.Hashtable
-import java.util.regex.Matcher
+import java.util.*
 import java.util.regex.Pattern
-
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
-
-import com.pokosho.PokoshoException
 
 /**
  * 文字列変換.
@@ -20,22 +15,24 @@ import com.pokosho.PokoshoException
  */
 class StrRep @Throws(PokoshoException::class)
 constructor(repStrPath: String) {
-    private val pattens: Hashtable<String, Pattern>
+    private val pattens: Hashtable<String, Pattern> = Hashtable()
 
     init {
-        pattens = Hashtable()
-        var file: File? = null
+        var file: File?
         var filereader: FileReader? = null
         var br: BufferedReader? = null
         try {
             file = File(repStrPath)
             filereader = FileReader(file)
             br = BufferedReader(filereader)
+
             var line: String? = null
-            while ((line = br.readLine()) != null) {
+            do {
+                line = br.readLine()
+                if (line == null) break
                 log.debug("repstr line:" + line!!)
                 addToPatters(line)
-            }
+            } while (line != null)
         } catch (e: IOException) {
             throw PokoshoException(e)
         } finally {
@@ -56,7 +53,7 @@ constructor(repStrPath: String) {
         while (keys.hasMoreElements()) {
             val key = keys.nextElement()
             val p = pattens[key]
-            val mat = p.matcher(org)
+            val mat = p!!.matcher(org)
             res = mat.replaceAll(key)
         }
         log.debug("replaced:$res")

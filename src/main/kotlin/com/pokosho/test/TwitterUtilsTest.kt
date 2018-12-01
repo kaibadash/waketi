@@ -1,8 +1,7 @@
 package com.pokosho.test
 
-import org.junit.jupiter.api.Assertions.*
-
 import com.pokosho.bot.twitter.TwitterUtils
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 
 class TwitterUtilsTest {

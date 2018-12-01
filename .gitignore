@@ -3,3 +3,7 @@
 
 # Ignore Gradle build output directory
 build
+out
+kuromoji-ipadic-neologd-*.jar
+bak
+waketi_*.txt

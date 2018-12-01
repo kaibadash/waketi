@@ -1,16 +1,12 @@
 package com.pokosho.bot
 
-import java.sql.SQLException
-import java.util.StringTokenizer
-
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
-
-import net.java.ao.EntityManager
-import net.java.ao.Query
-
 import com.pokosho.dao.Word
 import com.pokosho.db.TableInfo
+import net.java.ao.EntityManager
+import net.java.ao.Query
+import org.slf4j.LoggerFactory
+import java.sql.SQLException
+import java.util.*
 
 /**
  * TFIDFの処理を行う。
