@@ -56,7 +56,7 @@ constructor(dbPropPath: String, botPropPath: String) : AbstractBot(dbPropPath, b
         val s = super.say()
         try {
             if (s == null || s.length == 0) {
-                log.error("no word")
+                log.error("This bot knows no words")
                 return null
             }
             log.info("updateStatus:$s")
@@ -106,7 +106,7 @@ constructor(dbPropPath: String, botPropPath: String) : AbstractBot(dbPropPath, b
                 s = TwitterUtils.removeMention(s!!)
                 s = super.say(s, NUMBER_OF_DOCUMENT)
                 if (s == null || s.length == 0) {
-                    log.error("no word")
+                    log.error("Failed to reply. This bot knows no words")
                     continue
                 }
                 log.info("updateStatus:$s")

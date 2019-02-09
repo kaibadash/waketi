@@ -9,7 +9,6 @@ import com.pokosho.db.Pos
 import com.pokosho.db.TableInfo
 import com.pokosho.util.StrRep
 import com.pokosho.util.StringUtils
-import net.java.ao.DBParam
 import net.java.ao.EntityManager
 import net.java.ao.Query
 import org.apache.lucene.analysis.ja.JapaneseTokenizer
@@ -23,10 +22,10 @@ import java.util.*
 
 abstract class AbstractBot @Throws(PokoshoException::class)
 constructor(dbPropPath: String, botPropPath: String) {
-    protected val tokenizer: JapaneseTokenizer
-    protected val strRep: StrRep
-    protected val prop: Properties
-    protected val manager: EntityManager
+    private val tokenizer: JapaneseTokenizer
+    private val strRep: StrRep
+    private val prop: Properties
+    private val manager: EntityManager
     private val log = LoggerFactory.getLogger(AbstractBot::class.java)
     private val CHAIN_COUNT = 3
 
@@ -36,17 +35,14 @@ constructor(dbPropPath: String, botPropPath: String) {
         log.debug("botPropPath:$botPropPath")
         try {
             prop.load(FileInputStream(botPropPath))
+            strRep = StrRep(prop.getProperty("com.pokosho.repstr"))
+            this.manager = DBUtil.getEntityManager(dbPropPath)
         } catch (e1: FileNotFoundException) {
             log.error("FileNotFoundException", e1)
             throw PokoshoException(e1)
         } catch (e1: IOException) {
             log.error("IOException", e1)
             throw PokoshoException(e1)
-        }
-
-        strRep = StrRep(prop.getProperty("com.pokosho.repstr"))
-        try {
-            this.manager = DBUtil.getEntityManager(dbPropPath)
         } catch (e: IllegalArgumentException) {
             log.error("system error", e)
             throw PokoshoException(e)
@@ -80,9 +76,8 @@ constructor(dbPropPath: String, botPropPath: String) {
                     .where(TableInfo.TABLE_CHAIN_START + " = ?", true)
                     .order("rand()").limit(1)
             )
-            chain.toString()
             if (chain == null || chain.size == 0) {
-                log.info("bot knows no words.")
+                log.info("Bot knows no words.")
                 return null
             }
             // 終了まで文章を組み立てる
@@ -162,28 +157,15 @@ constructor(dbPropPath: String, botPropPath: String) {
                     words!![0].word_ID
                 ).limit(1)
             )
-            var startWithMaxCountWord = false
-            if (chain == null || chain.size == 0) {
-                chain = manager.find(
-                    Chain::class.java,
-                    Query.select().where(
-                        TableInfo.TABLE_CHAIN_PREFIX01 + " = ?  order by rand()",
-                        words[0].word_ID
-                    ).limit(1)
-                )
-                if (chain == null || chain.size == 0) {
-                    // まずあり得ないが保険
-                    log.debug("chain which is prefix01 or suffix wasn't found:" + words[0].word_ID!!)
-                    return null
-                }
-            } else {
-                startWithMaxCountWord = true
-            }
-
-            // 終了まで文章を組み立てる
-            var idList = LinkedList(
-                createWordIDList(chain)
+            var startWithMaxCountWord = (chain != null && chain.size > 0)
+            chain = manager.find(
+                Chain::class.java,
+                Query.select().where(
+                    TableInfo.TABLE_CHAIN_PREFIX01 + " = ?  order by rand()", words[0].word_ID
+                ).limit(1)
             )
+            // 終了まで文章を組み立てる
+            var idList = LinkedList(createWordIDList(chain))
             if (!startWithMaxCountWord) {
                 // 先頭まで組み立てる
                 idList = createWordIDListEndToStart(idList, chain)
@@ -197,17 +179,15 @@ constructor(dbPropPath: String, botPropPath: String) {
     @Throws(IOException::class, SQLException::class)
     protected fun studyFromLine(str: String?) {
         // スパム判定
-        if (str == null || str.length < 0) {
+        if (str == null || str.isEmpty()) {
             return
         }
         var target = str
         if (!TwitterUtils.containsJPN(target)) {
-            log.debug("it's not Japanese")
             return
         }
         // TODO:AbstractBoxにTweetの処理が来るのはおかしい… TwitterBotでやるべき
         if (TwitterUtils.isSpamTweet(target)) {
-            log.debug("spam tweet:$target")
             return
         }
         target = StringUtils.simplize(target)
@@ -221,14 +201,12 @@ constructor(dbPropPath: String, botPropPath: String) {
             val posAttr = tokenizer.addAttribute(PartOfSpeechAttribute::class.java)
             val posID = StringUtils.toPos(posAttr.partOfSpeech).intValue
 
-            if (word.length == 0) continue;
-
+            if (word.trim().isEmpty()) continue
             var existWord = manager.find(
                 Word::class.java,
                 Query.select().where(TableInfo.TABLE_WORD_WORD + " = ?", word)
             )
             if (existWord == null || existWord.size == 0) {
-                // 新規作成
                 val newWord = manager.create(
                     Word::class.java, mapOf(
                         "pos_ID" to posID,
@@ -250,82 +228,28 @@ constructor(dbPropPath: String, botPropPath: String) {
                 existWord[0].time = (System.currentTimeMillis() / 1000).toInt()
                 existWord[0].save()
             }
-
-            // chainができているかどうか
-
-            if (chainTmp.count() >= 2) {
-                // swap
-                chainTmp[0] = chainTmp[1]
-                chainTmp[1] = chainTmp[2]
-                chainTmp[2] = existWord!![0].word_ID
-                createChain(chainTmp[0], chainTmp[1], chainTmp[2], false)
-            } else {
-                // Chainを準備
-                if (chainTmp[0] != null) {
-                    if (chainTmp[1] != null) {
-                        chainTmp[2] = existWord!![0].word_ID // chain 完成
-                        createChain(chainTmp[0], chainTmp[1], chainTmp[2], true)
-                    } else {
-                        chainTmp[1] = existWord!![0].word_ID
-                    }
-                } else {
-                    chainTmp[0] = existWord!![0].word_ID
-                }
+            // FIXME: 泥臭い。3階のマルコフ連鎖にしか対応できてない。
+            if (chainTmp[0] == null) {
+                chainTmp[0] = existWord!![0].word_ID
+                continue
             }
+            if (chainTmp[1] == null) {
+                chainTmp[1] = existWord!![0].word_ID
+                continue
+            }
+            if (chainTmp[2] == null) {
+                chainTmp[2] = existWord!![0].word_ID
+                createChain(chainTmp[0], chainTmp[1], chainTmp[2], true)
+                continue
+            }
+            // swap
+            chainTmp[0] = chainTmp[1]
+            chainTmp[1] = chainTmp[2]
+            chainTmp[2] = existWord!![0].word_ID
+            createChain(chainTmp[0], chainTmp[1], chainTmp[2], false)
         }
-
-        // EOF
         createChain(chainTmp[1], chainTmp[2], null, false)
-    }
-
-    @Throws(SQLException::class)
-    protected fun createChain(
-        prefix01: Int?, prefix02: Int?,
-        saffix: Int?, start: Boolean?
-    ) {
-        log.debug(
-            String.format(
-                "createChain:%d,%d,%d", prefix01, prefix02,
-                saffix
-            )
-        )
-        if (prefix01 == null || prefix02 == null) {
-            log.debug("prefix is null.")
-            return
-        }
-        val existChain: Array<Chain>?
-        existChain = manager.find(
-            Chain::class.java,
-            Query.select().where(
-                TableInfo.TABLE_CHAIN_PREFIX01 + "=? and "
-                        + TableInfo.TABLE_CHAIN_PREFIX02 + "=? and "
-                        + TableInfo.TABLE_CHAIN_SUFFIX + "=?",
-                prefix01, prefix02, saffix
-            )
-        )
-        if (existChain != null && 0 < existChain.size) {
-            log.debug("chain exists.")
-            return
-        }
-        if (saffix == null) {
-            // 文章の終了
-            manager.create(
-                Chain::class.java,mapOf(
-                    TableInfo.TABLE_CHAIN_PREFIX01 to prefix01,
-                    TableInfo.TABLE_CHAIN_PREFIX02 to prefix02,
-                    TableInfo.TABLE_CHAIN_START to start
-                )
-            )
-        } else {
-            manager.create(
-                Chain::class.java,mapOf(
-                    TableInfo.TABLE_CHAIN_PREFIX01 to prefix01,
-                    TableInfo.TABLE_CHAIN_PREFIX02 to prefix02,
-                    TableInfo.TABLE_CHAIN_SUFFIX to saffix,
-                    TableInfo.TABLE_CHAIN_START to start
-                )
-            )
-        }
+        tokenizer.close()
     }
 
     /**
@@ -333,7 +257,7 @@ constructor(dbPropPath: String, botPropPath: String) {
      */
     protected fun cleaning() {
         val cleaningFile = prop.getProperty("com.pokosho.cleaning")
-        var file: File?
+        val file: File?
         var reader: FileReader? = null
         var br: BufferedReader? = null
         try {
@@ -380,6 +304,56 @@ constructor(dbPropPath: String, botPropPath: String) {
         }
     }
 
+    @Throws(SQLException::class)
+    private fun createChain(
+        prefix01: Int?, prefix02: Int?,
+        suffix: Int?, start: Boolean?
+    ) {
+        log.debug(
+            String.format(
+                "createChain:%d,%d,%d", prefix01, prefix02,
+                suffix
+            )
+        )
+        if (prefix01 == null || prefix02 == null) {
+            log.debug("prefix is null.")
+            return
+        }
+        val existChain: Array<Chain>?
+        existChain = manager.find(
+            Chain::class.java,
+            Query.select().where(
+                TableInfo.TABLE_CHAIN_PREFIX01 + "=? and "
+                        + TableInfo.TABLE_CHAIN_PREFIX02 + "=? and "
+                        + TableInfo.TABLE_CHAIN_SUFFIX + "=?",
+                prefix01, prefix02, suffix
+            )
+        )
+        if (existChain != null && 0 < existChain.size) {
+            log.debug("chain exists.")
+            return
+        }
+        if (suffix == null) {
+            // 文章の終了
+            manager.create(
+                Chain::class.java, mapOf(
+                    TableInfo.TABLE_CHAIN_PREFIX01 to prefix01,
+                    TableInfo.TABLE_CHAIN_PREFIX02 to prefix02,
+                    TableInfo.TABLE_CHAIN_START to start
+                )
+            )
+        } else {
+            manager.create(
+                Chain::class.java, mapOf(
+                    TableInfo.TABLE_CHAIN_PREFIX01 to prefix01,
+                    TableInfo.TABLE_CHAIN_PREFIX02 to prefix02,
+                    TableInfo.TABLE_CHAIN_SUFFIX to suffix,
+                    TableInfo.TABLE_CHAIN_START to start
+                )
+            )
+        }
+    }
+
     /**
      * 単語のIDリストを作成する
      *
@@ -397,7 +371,6 @@ constructor(dbPropPath: String, botPropPath: String) {
         idList.add(startChain[0].prefix02)
         var chain = startChain
         while (true) {
-            log.debug("pick next chain which has prefix01 id " + chain[0].suffix!!)
             if (chain[0].suffix == null) {
                 break
             }
@@ -443,26 +416,22 @@ constructor(dbPropPath: String, botPropPath: String) {
      * @throws SQLException
      */
     @Throws(SQLException::class)
-    private fun createWordIDListEndToStart(
-        idList: LinkedList<Int?>, startChain: Array<Chain>
-    ): LinkedList<Int?> {
+    private fun createWordIDListEndToStart(idList: LinkedList<Int?>, startChain: Array<Chain>): LinkedList<Int?> {
         var chain = startChain
         while (true) {
             if (chain[0].start!!) {
                 break
             }
             // 始まりを探す
-            var nextChain: Array<Chain>? = manager.find(
+            var nextChain: Array<Chain> = manager.find(
                 Chain::class.java,
                 Query.select().where(
                     TableInfo.TABLE_CHAIN_SUFFIX + "=? and "
                             + TableInfo.TABLE_CHAIN_START
-                            + "=?", chain[0].prefix01,
-                    true
+                            + "=?", chain[0].prefix01, true
                 ).limit(1)
             )
-            if (nextChain == null || nextChain.size == 0) {
-                // 無かったらランダムピック
+            if (nextChain.isEmpty()) {
                 nextChain = manager.find(
                     Chain::class.java,
                     Query.select().where(
@@ -471,8 +440,8 @@ constructor(dbPropPath: String, botPropPath: String) {
                     ).limit(1)
                 )
             }
-            if (nextChain == null || nextChain.size == 0) {
-                log.info("no next chain. please study more...")
+            if (nextChain.isEmpty()) {
+                log.info("There is no next chain. please study more...")
                 break
             }
             idList.add(0, nextChain[0].prefix01)
@@ -493,27 +462,21 @@ constructor(dbPropPath: String, botPropPath: String) {
     @Throws(SQLException::class)
     private fun createWordsFromIDList(idList: List<Int?>): String {
         val result = StringBuilder()
-        // wordの取得
-        for (i in idList.indices) {
-            val words = manager.find(
+        for (id in idList) {
+            if (id == null) continue // FIXME: List<Int>にできるはずだ
+            val word = manager.find(
                 Word::class.java,
-                Query.select().where(
-                    TableInfo.TABLE_WORD_WORD_ID + "=?",
-                    idList[i]
-                )
-            )
-            if (words[0].word.length <= 0) {
-                continue
-            }
-            val lastChar = words[0].word[words[0].word.length - 1]
+                Query.select().where(TableInfo.TABLE_WORD_WORD_ID + "=?", id)
+            ).first()
+            val lastChar = word.word.last()
             // 半角英語の間にスペースを入れる
             if (result.length != 0
                 && TwitterUtils.isAlfabet(lastChar)
-                && TwitterUtils
-                    .isAlfabet(result[result.length - 1])
+                && TwitterUtils.isAlfabet(result[result.length - 1])
             ) {
                 result.append(" ")
             }
+            result.append(word.word)
         }
         return result.toString()
     }
