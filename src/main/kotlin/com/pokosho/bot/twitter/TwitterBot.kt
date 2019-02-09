@@ -1,6 +1,5 @@
 package com.pokosho.bot.twitter
 
-import com.google.common.collect.ImmutableSet
 import com.pokosho.PokoshoException
 import com.pokosho.bot.AbstractBot
 import com.pokosho.util.StringUtils

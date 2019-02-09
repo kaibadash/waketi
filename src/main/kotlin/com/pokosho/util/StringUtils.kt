@@ -4,7 +4,6 @@ import com.pokosho.db.Pos
 
 object StringUtils {
     var ENCODE_STRING = "UTF-8"
-    val KUROMOJI_POS_INDEX = 0
     private val NOUN = "名詞"
     private val VERV = "動詞"
     private val ADJECTIVE = "形容詞"
@@ -17,15 +16,13 @@ object StringUtils {
     private val JOSHI = "助詞"
     private val UNKNOWN = "未知語" /* 名詞扱い */
 
-    // private final static String OTHER = "記号";
-
     /**
      * 文字列をシンプルにする. URLを除いたり、全角半角統一、「」削除を行う.
      *
      * @param str
      * @return
      */
-    fun simplize(str: String): String {
+    fun simplify(str: String): String {
         // URLを削除
         var res = str
             .replace("^(https?|ftp)(:\\/\\/[-_.!~*\\'()a-zA-Z0-9;\\/?:\\@&=+\\$,%#]+)".toRegex(), "")
@@ -36,10 +33,8 @@ object StringUtils {
         return res
     }
 
-    fun simplizeForReply(str: String): String {
-        var res = StringUtils.simplize(str)
-        res = res.replace("[¥¥!！¥¥?？¥¥.。¥¥-]".toRegex(), "")
-        return res
+    fun simplifyForReply(str: String): String {
+        return StringUtils.simplify(str).replace("[¥¥!！¥¥?？¥¥.。¥¥-]".toRegex(), "")
     }
 
     fun toPos(posStr: String): Pos {

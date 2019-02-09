@@ -1,5 +1,6 @@
 package com.pokosho.db
 
+// FIXME: DAOの責務なのでそこに移動させたい
 object TableInfo {
     var TABLE_WORD_WORD = "word"
     var TABLE_WORD_WORD_ID = "word_id"

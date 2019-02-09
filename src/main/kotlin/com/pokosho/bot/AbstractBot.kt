@@ -18,7 +18,7 @@ import org.slf4j.LoggerFactory
 import java.io.*
 import java.sql.SQLException
 import java.util.*
-
+import kotlin.collections.ArrayList
 
 abstract class AbstractBot @Throws(PokoshoException::class)
 constructor(dbPropPath: String, botPropPath: String) {
@@ -108,8 +108,8 @@ constructor(dbPropPath: String, botPropPath: String) {
 
         try {
             log.debug("reply base:$targetFrom")
-            targetFrom = StringUtils.simplizeForReply(targetFrom)
-            log.debug("simplizeForReply:$targetFrom")
+            targetFrom = StringUtils.simplifyForReply(targetFrom)
+            log.debug("simplifyForReply:$targetFrom")
             tokenizer.setReader(StringReader(targetFrom))
             tokenizer.reset()
 
@@ -136,37 +136,33 @@ constructor(dbPropPath: String, botPropPath: String) {
             }
 
             // 最大コストの単語で始まっているか調べて、始まっていたら使う
-            var words: Array<Word>? = null
-            if (0 < maxTFIDF) {
-                words = manager.find(
-                    Word::class.java,
-                    Query.select().where(
-                        TableInfo.TABLE_WORD_WORD + " = ?",
-                        keyword!!.word
-                    )
-                )
+            if (keyword == null) {
+                log.debug("keyword isn't found. can't reply.")
+                return null
             }
-
+            val word = manager.find(
+                Word::class.java,
+                Query.select().where(TableInfo.TABLE_WORD_WORD + " = ?", keyword.word)
+            ).first()
             // word found, start creating chain
-            var chain: Array<Chain>? = manager.find(
+            var chain: Array<Chain> = manager.find(
                 Chain::class.java,
                 Query.select().where(
                     TableInfo.TABLE_CHAIN_START + " = ? and "
                             + TableInfo.TABLE_CHAIN_PREFIX01
-                            + " = ?  order by rand()", true,
-                    words!![0].word_ID
+                            + " = ?  order by rand()", true, word.word_ID
                 ).limit(1)
             )
-            var startWithMaxCountWord = (chain != null && chain.size > 0)
+            val startedWithMaxCountWord = (chain.size > 0)
             chain = manager.find(
                 Chain::class.java,
                 Query.select().where(
-                    TableInfo.TABLE_CHAIN_PREFIX01 + " = ?  order by rand()", words[0].word_ID
+                    TableInfo.TABLE_CHAIN_PREFIX01 + " = ?  order by rand()", word.word_ID
                 ).limit(1)
             )
             // 終了まで文章を組み立てる
             var idList = LinkedList(createWordIDList(chain))
-            if (!startWithMaxCountWord) {
+            if (!startedWithMaxCountWord) {
                 // 先頭まで組み立てる
                 idList = createWordIDListEndToStart(idList, chain)
             }
@@ -190,7 +186,7 @@ constructor(dbPropPath: String, botPropPath: String) {
         if (TwitterUtils.isSpamTweet(target)) {
             return
         }
-        target = StringUtils.simplize(target)
+        target = StringUtils.simplify(target)
 
         tokenizer.setReader(StringReader(target))
         tokenizer.reset()
@@ -228,7 +224,7 @@ constructor(dbPropPath: String, botPropPath: String) {
                 existWord[0].time = (System.currentTimeMillis() / 1000).toInt()
                 existWord[0].save()
             }
-            // FIXME: 泥臭い。3階のマルコフ連鎖にしか対応できてない。
+            // FIXME: 泥臭い。3階のマルコフ連鎖にしか対応できてない。がこれはこれでわかりやすいかもしれない。
             if (chainTmp[0] == null) {
                 chainTmp[0] = existWord!![0].word_ID
                 continue
@@ -270,10 +266,7 @@ constructor(dbPropPath: String, botPropPath: String) {
                 line = br.readLine()
                 val words = manager.find(
                     Word::class.java,
-                    Query.select().where(
-                        TableInfo.TABLE_WORD_WORD + " like '" + line
-                                + "%'"
-                    )
+                    Query.select().where(TableInfo.TABLE_WORD_WORD + " like '" + line + "%'")
                 )
                 // カンマ区切りにする
                 val sb = StringBuffer()
@@ -333,16 +326,7 @@ constructor(dbPropPath: String, botPropPath: String) {
             log.debug("chain exists.")
             return
         }
-        if (suffix == null) {
-            // 文章の終了
-            manager.create(
-                Chain::class.java, mapOf(
-                    TableInfo.TABLE_CHAIN_PREFIX01 to prefix01,
-                    TableInfo.TABLE_CHAIN_PREFIX02 to prefix02,
-                    TableInfo.TABLE_CHAIN_START to start
-                )
-            )
-        } else {
+        if (suffix != null) {
             manager.create(
                 Chain::class.java, mapOf(
                     TableInfo.TABLE_CHAIN_PREFIX01 to prefix01,
@@ -351,7 +335,16 @@ constructor(dbPropPath: String, botPropPath: String) {
                     TableInfo.TABLE_CHAIN_START to start
                 )
             )
+            return
         }
+        // 文章の終了
+        manager.create(
+            Chain::class.java, mapOf(
+                TableInfo.TABLE_CHAIN_PREFIX01 to prefix01,
+                TableInfo.TABLE_CHAIN_PREFIX02 to prefix02,
+                TableInfo.TABLE_CHAIN_START to start
+            )
+        )
     }
 
     /**
@@ -362,8 +355,7 @@ constructor(dbPropPath: String, botPropPath: String) {
     @Throws(SQLException::class)
     private fun createWordIDList(startChain: Array<Chain>): List<Int?> {
         val chainCountDown = Integer.parseInt(
-            prop
-                .getProperty("com.pokosho.chain_count_down")
+            prop.getProperty("com.pokosho.chain_count_down")
         )
         var loopCount = 0
         val idList = ArrayList<Int?>()
@@ -463,7 +455,7 @@ constructor(dbPropPath: String, botPropPath: String) {
     private fun createWordsFromIDList(idList: List<Int?>): String {
         val result = StringBuilder()
         for (id in idList) {
-            if (id == null) continue // FIXME: List<Int>にできるはずだ
+            if (id == null) continue
             val word = manager.find(
                 Word::class.java,
                 Query.select().where(TableInfo.TABLE_WORD_WORD_ID + "=?", id)
@@ -472,7 +464,7 @@ constructor(dbPropPath: String, botPropPath: String) {
             // 半角英語の間にスペースを入れる
             if (result.length != 0
                 && TwitterUtils.isAlfabet(lastChar)
-                && TwitterUtils.isAlfabet(result[result.length - 1])
+                && TwitterUtils.isAlfabet(result.last())
             ) {
                 result.append(" ")
             }
