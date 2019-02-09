@@ -26,11 +26,11 @@ constructor(repStrPath: String) {
             filereader = FileReader(file)
             br = BufferedReader(filereader)
 
-            var line: String? = null
+            var line: String?
             do {
                 line = br.readLine()
                 if (line == null) break
-                log.debug("repstr line:" + line!!)
+                log.debug("repstr line:" + line)
                 addToPatters(line)
             } while (line != null)
         } catch (e: IOException) {

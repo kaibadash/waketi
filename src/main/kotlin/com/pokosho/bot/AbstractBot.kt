@@ -1,8 +1,5 @@
 package com.pokosho.bot
 
-import com.atilika.kuromoji.ipadic.Token
-import com.atilika.kuromoji.ipadic.Tokenizer
-import com.google.common.collect.ImmutableSet
 import com.pokosho.PokoshoException
 import com.pokosho.bot.twitter.TwitterUtils
 import com.pokosho.dao.Chain
@@ -15,17 +12,21 @@ import com.pokosho.util.StringUtils
 import net.java.ao.DBParam
 import net.java.ao.EntityManager
 import net.java.ao.Query
+import org.apache.lucene.analysis.ja.JapaneseTokenizer
+import org.apache.lucene.analysis.ja.tokenattributes.PartOfSpeechAttribute
+import org.apache.lucene.analysis.tokenattributes.CharTermAttribute
 import org.slf4j.LoggerFactory
 import java.io.*
 import java.sql.SQLException
 import java.util.*
 
+
 abstract class AbstractBot @Throws(PokoshoException::class)
 constructor(dbPropPath: String, botPropPath: String) {
-    protected var tokenizer: Tokenizer? = null
-    protected var strRep: StrRep
-    protected var prop: Properties
-    protected var manager: EntityManager
+    protected val tokenizer: JapaneseTokenizer
+    protected val strRep: StrRep
+    protected val prop: Properties
+    protected val manager: EntityManager
     private val log = LoggerFactory.getLogger(AbstractBot::class.java)
     private val CHAIN_COUNT = 3
 
@@ -51,7 +52,7 @@ constructor(dbPropPath: String, botPropPath: String) {
             throw PokoshoException(e)
         }
 
-        this.tokenizer = Tokenizer.Builder().build()
+        this.tokenizer = JapaneseTokenizer(null, false, JapaneseTokenizer.Mode.NORMAL)
     }
 
     /**
@@ -106,29 +107,34 @@ constructor(dbPropPath: String, botPropPath: String) {
     @Throws(PokoshoException::class)
     fun say(from: String, numberOfDocuments: Int): String? {
         var targetFrom = from
+        var maxTFIDF = 0.0
+        var keyword: Word? = null
+
         try {
             log.debug("reply base:$targetFrom")
             targetFrom = StringUtils.simplizeForReply(targetFrom)
             log.debug("simplizeForReply:$targetFrom")
-            val token = tokenizer!!.tokenize(targetFrom)
-            var maxTFIDF = 0.0
-            var keyword: Token? = null
-            for (t in token) {
-                log.debug(
-                    "surface:" + t.surface + " features:"
-                            + t.getAllFeatures()
-                )
-                // 名詞でtf-idfが高い言葉
-                val tPos = StringUtils
-                    .toPos(t.getAllFeaturesArray()[StringUtils.KUROMOJI_POS_INDEX])
-                if (tPos == Pos.Noun) {
+            tokenizer.setReader(StringReader(targetFrom))
+            tokenizer.reset()
+
+            while (tokenizer.incrementToken()) {
+                val charAttr = tokenizer.addAttribute(CharTermAttribute::class.java)
+                val posAttr = tokenizer.addAttribute(PartOfSpeechAttribute::class.java)
+
+                val word = this.manager.create(Word::class.java)
+                word.word = charAttr.toString()
+                word.pos_ID = StringUtils.toPos(posAttr.partOfSpeech).intValue
+                log.debug("surface:${word.word} features:${word.word}")
+
+                // FIXME: wordにenumを保持できないか? intValueやめたい。
+                if (word.pos_ID == Pos.Noun.intValue) {
                     val tdidf = TFIDF.calculateTFIDF(
                         manager, targetFrom,
-                        t.surface, numberOfDocuments.toLong()
+                        word.word, numberOfDocuments.toLong()
                     )
                     if (maxTFIDF < tdidf) {
                         maxTFIDF = tdidf
-                        keyword = t
+                        keyword = word
                     }
                 }
             }
@@ -140,7 +146,7 @@ constructor(dbPropPath: String, botPropPath: String) {
                     Word::class.java,
                     Query.select().where(
                         TableInfo.TABLE_WORD_WORD + " = ?",
-                        keyword!!.surface
+                        keyword!!.word
                     )
                 )
             }
@@ -188,43 +194,49 @@ constructor(dbPropPath: String, botPropPath: String) {
     }
 
     @Throws(IOException::class, SQLException::class)
-    protected fun studyFromLine(str: String?): List<Token>? {
+    protected fun studyFromLine(str: String?) {
         // スパム判定
         if (str == null || str.length < 0) {
-            return null
+            return
         }
         var target = str
         if (!TwitterUtils.containsJPN(target)) {
             log.debug("it's not Japanese")
-            return null
+            return
         }
         // TODO:AbstractBoxにTweetの処理が来るのはおかしい… TwitterBotでやるべき
         if (TwitterUtils.isSpamTweet(target)) {
             log.debug("spam tweet:$target")
-            return null
+            return
         }
         target = StringUtils.simplize(target)
-        val token = tokenizer!!.tokenize(target)
+
+        tokenizer.setReader(StringReader(target))
+        tokenizer.reset()
         val chainTmp = arrayOfNulls<Int>(CHAIN_COUNT)
-        // chainを作成する。
-        // chainの作成確認のため、拡張for文は使わない。
-        for (i in token.indices) {
-            log.debug(token[i].surface)
+
+        while (tokenizer.incrementToken()) {
+            val charAttr = tokenizer.addAttribute(CharTermAttribute::class.java)
+            val posAttr = tokenizer.addAttribute(PartOfSpeechAttribute::class.java)
+
+            val word = this.manager.create(Word::class.java)
+            word.word = charAttr.toString()
+            word.pos_ID = StringUtils.toPos(posAttr.partOfSpeech).intValue
+            log.debug("surface:${word.word} features:${word.word}")
+
             var existWord = manager.find(
                 Word::class.java,
                 Query.select().where(
                     TableInfo.TABLE_WORD_WORD + " = ?",
-                    token[i].surface
+                    word.word
                 )
             )
             if (existWord == null || existWord.size == 0) {
                 // 新規作成
                 val newWord = manager.create(Word::class.java)
-                newWord.word = token[i].surface
+                newWord.word = word.word
                 newWord.word_Count = 1
-                newWord.pos_ID = StringUtils
-                    .toPos(token[i].getAllFeaturesArray()[StringUtils.KUROMOJI_POS_INDEX])
-                    .intValue
+                newWord.pos_ID = word.pos_ID
                 newWord.time = (System.currentTimeMillis() / 1000).toInt()
                 newWord.save()
 
@@ -233,7 +245,7 @@ constructor(dbPropPath: String, botPropPath: String) {
                     Word::class.java,
                     Query.select().where(
                         TableInfo.TABLE_WORD_WORD + " = ?",
-                        token[i].surface
+                        word.word
                     )
                 )
                 // createで作っている時点でIDは分かるので無駄…
@@ -244,7 +256,8 @@ constructor(dbPropPath: String, botPropPath: String) {
             }
 
             // chainができているかどうか
-            if (2 < i) {
+
+            if (chainTmp.count() >= 2) {
                 // swap
                 chainTmp[0] = chainTmp[1]
                 chainTmp[1] = chainTmp[2]
@@ -264,20 +277,20 @@ constructor(dbPropPath: String, botPropPath: String) {
                 }
             }
         }
+
         // EOF
         createChain(chainTmp[1], chainTmp[2], null, false)
-        return token
     }
 
     @Throws(SQLException::class)
     protected fun createChain(
         prefix01: Int?, prefix02: Int?,
-        safix: Int?, start: Boolean?
+        saffix: Int?, start: Boolean?
     ) {
         log.debug(
             String.format(
                 "createChain:%d,%d,%d", prefix01, prefix02,
-                safix
+                saffix
             )
         )
         if (prefix01 == null || prefix02 == null) {
@@ -291,14 +304,14 @@ constructor(dbPropPath: String, botPropPath: String) {
                 TableInfo.TABLE_CHAIN_PREFIX01 + "=? and "
                         + TableInfo.TABLE_CHAIN_PREFIX02 + "=? and "
                         + TableInfo.TABLE_CHAIN_SUFFIX + "=?",
-                prefix01, prefix02, safix
+                prefix01, prefix02, saffix
             )
         )
         if (existChain != null && 0 < existChain.size) {
             log.debug("chain exists.")
             return
         }
-        if (safix == null) {
+        if (saffix == null) {
             // 文章の終了
             manager.create(
                 Chain::class.java, DBParam(
@@ -316,7 +329,7 @@ constructor(dbPropPath: String, botPropPath: String) {
                 ), DBParam(
                     TableInfo.TABLE_CHAIN_PREFIX02, prefix02
                 ), DBParam(
-                    TableInfo.TABLE_CHAIN_SUFFIX, safix
+                    TableInfo.TABLE_CHAIN_SUFFIX, saffix
                 ), DBParam(
                     TableInfo.TABLE_CHAIN_START, start
                 )
