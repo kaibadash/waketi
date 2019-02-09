@@ -134,7 +134,9 @@ constructor(dbPropPath: String, botPropPath: String) : AbstractBot(dbPropPath, b
             // WORKファイルのタイムスタンプを見て、指定時間経っていたら、フォロー返しを実行
             val f = File(WORK_LAST_FOLLOW_FILE)
             val cTime = System.currentTimeMillis()
-            spamWords = TwitterUtils.getStringSet(spamWordsPath!!)
+            if (spamWordsPath != null) {
+                spamWords = TwitterUtils.getStringSet(spamWordsPath!!)
+            }
             log.info(
                 "selfUser:" + selfUser + " currentTimeMillis:" + cTime
                         + " lastModified+FOLLOW_INTERVAL_MSEC:"
@@ -156,10 +158,7 @@ constructor(dbPropPath: String, botPropPath: String) : AbstractBot(dbPropPath, b
             val last = homeTimeLineList[0]
             saveLastRead(last.id, WORK_LAST_READ_FILE)
             log.info("size of homeTimelineList:" + homeTimeLineList.size)
-            val endsWithNumPattern = Pattern.compile(
-                ".*[0-9]+$",
-                Pattern.CASE_INSENSITIVE
-            )
+            val endsWithNumPattern = Pattern.compile(".*[0-9]+$", Pattern.CASE_INSENSITIVE)
             val notTeachers = TwitterUtils
                 .getNotTeachers(notTreacherPath!!)
             for (s in homeTimeLineList) {
@@ -188,9 +187,9 @@ constructor(dbPropPath: String, botPropPath: String) : AbstractBot(dbPropPath, b
                     tweet = TwitterUtils.removeUrl(tweet)
                     tweet = TwitterUtils.removeMention(tweet)
                     tweet = TwitterUtils.removeRTString(tweet)
-                    val splited = tweet.split("。".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
+                    val split = tweet.split("。".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
                     // 「。」で切れたところで文章の終わりとする
-                    for (msg in splited) {
+                    for (msg in split) {
                         studyFromLine(msg)
                         // 数字で終わるtweetは誰が教えているのか？
                         val matcher = endsWithNumPattern.matcher(msg)
@@ -368,10 +367,7 @@ constructor(dbPropPath: String, botPropPath: String) : AbstractBot(dbPropPath, b
     private fun calcNotFollow(follower: IDs, friends: IDs): List<Long> {
         val returnValue = ArrayList<Long>()
         val lastFollow = loadLastRead(WORK_LAST_FOLLOW_FILE)
-        log.info(
-            "follower count:" + follower.iDs.size
-                    + " friends count:" + friends.iDs.size
-        )
+        log.info("follower count:${follower.iDs.size} friends count: ${friends.iDs.size}")
         for (id in follower.iDs) {
             if (lastFollow == id)
                 break // 最後にフォローしたところまで読んだ
@@ -385,9 +381,7 @@ constructor(dbPropPath: String, botPropPath: String) : AbstractBot(dbPropPath, b
 
     private fun contains(friends: IDs, id: Long): Boolean {
         for (friendId in friends.iDs) {
-            if (friendId == id) {
-                return true
-            }
+            if (friendId == id) return true
         }
         return false
     }
@@ -405,7 +399,7 @@ constructor(dbPropPath: String, botPropPath: String) : AbstractBot(dbPropPath, b
         private val STATUS_MAX_COUNT = 200
         // TF-IDFのN. 以前のコストと比較するわけではないので定数で良い
         private val NUMBER_OF_DOCUMENT = 100000
-        private var spamWords: Set<String>? = null
+        private var spamWords: Set<String> = setOf()
         private val MIN_TWEET_FOR_FOLLOW = 100
         private val SPAM_USER_LOG_LABEL = "spam user:"
         private val KEY_CONSUMER_KEY = "twitter.consumer.key"

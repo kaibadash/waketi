@@ -18,11 +18,10 @@ constructor(repStrPath: String) {
     private val pattens: Hashtable<String, Pattern> = Hashtable()
 
     init {
-        var file: File?
         var filereader: FileReader? = null
         var br: BufferedReader? = null
         try {
-            file = File(repStrPath)
+            val file = File(repStrPath)
             filereader = FileReader(file)
             br = BufferedReader(filereader)
 
@@ -61,8 +60,8 @@ constructor(repStrPath: String) {
     }
 
     private fun addToPatters(line: String) {
-        val splited = line.split("\t".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
-        val targets = splited[1].split(",".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
+        val split = line.split("\t".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
+        val targets = split[1].split(",".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
         val sb = StringBuilder()
 
         sb.append("(" + targets[0] + ")")
@@ -70,7 +69,7 @@ constructor(repStrPath: String) {
             sb.append("|(" + targets[i] + ")")
         }
         log.debug("regex str:" + sb.toString())
-        pattens[splited[0]] = Pattern.compile(sb.toString())
+        pattens[split[0]] = Pattern.compile(sb.toString())
     }
 
     companion object {

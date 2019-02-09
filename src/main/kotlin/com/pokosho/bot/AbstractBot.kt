@@ -202,29 +202,16 @@ constructor(dbPropPath: String, botPropPath: String) {
                 Word::class.java,
                 Query.select().where(TableInfo.TABLE_WORD_WORD + " = ?", word)
             )
-            if (existWord == null || existWord.size == 0) {
-                val newWord = manager.create(
-                    Word::class.java, mapOf(
-                        "pos_ID" to posID,
-                        "word" to word,
-                        "word_Count" to 1,
-                        "time" to (System.currentTimeMillis() / 1000).toInt()
-                    )
-                )
-                newWord.save()
-
-                // IDを取得
-                existWord = manager.find(
-                    Word::class.java,
-                    Query.select().where(TableInfo.TABLE_WORD_WORD + " = ?", word)
-                )
-                // createで作っている時点でIDは分かるので無駄…
+            if (existWord.isEmpty()) {
+                existWord = saveNewWord(word, posID)
             } else {
+                // FIXME: !!削除。DBでnot null default 1 にすべき
                 existWord[0].word_Count = existWord[0].word_Count!! + 1
                 existWord[0].time = (System.currentTimeMillis() / 1000).toInt()
                 existWord[0].save()
             }
             // FIXME: 泥臭い。3階のマルコフ連鎖にしか対応できてない。がこれはこれでわかりやすいかもしれない。
+            // FIXME: !!削除。DBでnot null default 1 にすべき
             if (chainTmp[0] == null) {
                 chainTmp[0] = existWord!![0].word_ID
                 continue
@@ -271,6 +258,7 @@ constructor(dbPropPath: String, botPropPath: String) {
                 // カンマ区切りにする
                 val sb = StringBuffer()
                 for (w in words) {
+                    // FIXME: DBで not nullにすべき
                     sb.append(w.word_ID!!.toString() + ",")
                 }
                 if (sb.length == 0) {
@@ -347,6 +335,19 @@ constructor(dbPropPath: String, botPropPath: String) {
         )
     }
 
+    private fun saveNewWord(word: String, posID: Int): Array<Word> {
+        val w = manager.create(
+            Word::class.java, mapOf(
+                "pos_ID" to posID,
+                "word" to word,
+                "word_Count" to 1,
+                "time" to (System.currentTimeMillis() / 1000).toInt()
+            )
+        )
+        w.save()
+        return arrayOf(w)
+    }
+
     /**
      * 単語のIDリストを作成する
      *
@@ -371,7 +372,7 @@ constructor(dbPropPath: String, botPropPath: String) {
             if (loopCount > chainCountDown) {
                 whereEnd = TableInfo.TABLE_CHAIN_SUFFIX + "=null and "
             }
-            var nextChain: Array<Chain>? = manager.find(
+            var nextChain: Array<Chain> = manager.find(
                 Chain::class.java,
                 Query.select().where(
                     whereEnd + TableInfo.TABLE_CHAIN_PREFIX01
@@ -380,7 +381,7 @@ constructor(dbPropPath: String, botPropPath: String) {
                 ).limit(1)
             )
             // 終端が見つからなかった場合は、終端を探すのを諦める
-            if (whereEnd.length == 0 && nextChain == null || nextChain!!.size == 0) {
+            if (whereEnd.length == 0 && nextChain.isEmpty()) {
                 nextChain = manager.find(
                     Chain::class.java,
                     Query.select().where(
@@ -389,7 +390,7 @@ constructor(dbPropPath: String, botPropPath: String) {
                     ).limit(1)
                 )
             }
-            if (nextChain == null || nextChain.size == 0) {
+            if (nextChain.isEmpty()) {
                 log.info("no next chain. please study more...")
                 break
             }

@@ -40,7 +40,7 @@ object StringUtils {
     fun toPos(posStr: String): Pos {
         val p = posStr.split("-".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()[0]
         // log.debug("posStr:" + posStr + " toPos:" + p + " detail:" + posStr);
-        if (p == null || p.length == 0 || p.startsWith(UNKNOWN)) {
+        if (p.length == 0 || p.startsWith(UNKNOWN)) {
             /* 未知語は名詞扱い */
             return Pos.Noun
         }
