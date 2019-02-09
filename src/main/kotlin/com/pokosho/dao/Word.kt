@@ -1,11 +1,12 @@
 package com.pokosho.dao
 
 import net.java.ao.Entity
+import net.java.ao.RawEntity
 import net.java.ao.schema.AutoIncrement
 import net.java.ao.schema.NotNull
 import net.java.ao.schema.PrimaryKey
 
-interface Word : Entity {
+interface Word : RawEntity<Int> {
     @get:PrimaryKey
     @get:NotNull
     @get:AutoIncrement

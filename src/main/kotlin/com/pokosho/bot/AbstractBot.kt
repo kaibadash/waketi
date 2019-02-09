@@ -78,7 +78,7 @@ constructor(dbPropPath: String, botPropPath: String) {
                 Chain::class.java,
                 Query.select()
                     .where(TableInfo.TABLE_CHAIN_START + " = ?", true)
-                    .order("rand() limit 1")
+                    .order("rand()").limit(1)
             )
             chain.toString()
             if (chain == null || chain.size == 0) {
@@ -90,6 +90,7 @@ constructor(dbPropPath: String, botPropPath: String) {
             result = createWordsFromIDList(idList)
             result = strRep.rep(result)
         } catch (e: SQLException) {
+            log.error(e.message, e)
             throw PokoshoException(e)
         }
 
@@ -157,18 +158,18 @@ constructor(dbPropPath: String, botPropPath: String) {
                 Query.select().where(
                     TableInfo.TABLE_CHAIN_START + " = ? and "
                             + TableInfo.TABLE_CHAIN_PREFIX01
-                            + " = ?  order by rand() limit 1", true,
+                            + " = ?  order by rand()", true,
                     words!![0].word_ID
-                )
+                ).limit(1)
             )
             var startWithMaxCountWord = false
             if (chain == null || chain.size == 0) {
                 chain = manager.find(
                     Chain::class.java,
                     Query.select().where(
-                        TableInfo.TABLE_CHAIN_PREFIX01 + " = ?  order by rand() limit 1",
+                        TableInfo.TABLE_CHAIN_PREFIX01 + " = ?  order by rand()",
                         words[0].word_ID
-                    )
+                    ).limit(1)
                 )
                 if (chain == null || chain.size == 0) {
                     // まずあり得ないが保険
@@ -216,37 +217,32 @@ constructor(dbPropPath: String, botPropPath: String) {
         val chainTmp = arrayOfNulls<Int>(CHAIN_COUNT)
 
         while (tokenizer.incrementToken()) {
-            val charAttr = tokenizer.addAttribute(CharTermAttribute::class.java)
+            val word = tokenizer.addAttribute(CharTermAttribute::class.java).toString()
             val posAttr = tokenizer.addAttribute(PartOfSpeechAttribute::class.java)
+            val posID = StringUtils.toPos(posAttr.partOfSpeech).intValue
 
-            val word = this.manager.create(Word::class.java)
-            word.word = charAttr.toString()
-            word.pos_ID = StringUtils.toPos(posAttr.partOfSpeech).intValue
-            log.debug("surface:${word.word} features:${word.word}")
+            if (word.length == 0) continue;
 
             var existWord = manager.find(
                 Word::class.java,
-                Query.select().where(
-                    TableInfo.TABLE_WORD_WORD + " = ?",
-                    word.word
-                )
+                Query.select().where(TableInfo.TABLE_WORD_WORD + " = ?", word)
             )
             if (existWord == null || existWord.size == 0) {
                 // 新規作成
-                val newWord = manager.create(Word::class.java)
-                newWord.word = word.word
-                newWord.word_Count = 1
-                newWord.pos_ID = word.pos_ID
-                newWord.time = (System.currentTimeMillis() / 1000).toInt()
+                val newWord = manager.create(
+                    Word::class.java, mapOf(
+                        "pos_ID" to posID,
+                        "word" to word,
+                        "word_Count" to 1,
+                        "time" to (System.currentTimeMillis() / 1000).toInt()
+                    )
+                )
                 newWord.save()
 
                 // IDを取得
                 existWord = manager.find(
                     Word::class.java,
-                    Query.select().where(
-                        TableInfo.TABLE_WORD_WORD + " = ?",
-                        word.word
-                    )
+                    Query.select().where(TableInfo.TABLE_WORD_WORD + " = ?", word)
                 )
                 // createで作っている時点でIDは分かるので無駄…
             } else {
@@ -314,24 +310,19 @@ constructor(dbPropPath: String, botPropPath: String) {
         if (saffix == null) {
             // 文章の終了
             manager.create(
-                Chain::class.java, DBParam(
-                    TableInfo.TABLE_CHAIN_PREFIX01, prefix01
-                ), DBParam(
-                    TableInfo.TABLE_CHAIN_PREFIX02, prefix02
-                ), DBParam(
-                    TableInfo.TABLE_CHAIN_START, start
+                Chain::class.java,mapOf(
+                    TableInfo.TABLE_CHAIN_PREFIX01 to prefix01,
+                    TableInfo.TABLE_CHAIN_PREFIX02 to prefix02,
+                    TableInfo.TABLE_CHAIN_START to start
                 )
             )
         } else {
             manager.create(
-                Chain::class.java, DBParam(
-                    TableInfo.TABLE_CHAIN_PREFIX01, prefix01
-                ), DBParam(
-                    TableInfo.TABLE_CHAIN_PREFIX02, prefix02
-                ), DBParam(
-                    TableInfo.TABLE_CHAIN_SUFFIX, saffix
-                ), DBParam(
-                    TableInfo.TABLE_CHAIN_START, start
+                Chain::class.java,mapOf(
+                    TableInfo.TABLE_CHAIN_PREFIX01 to prefix01,
+                    TableInfo.TABLE_CHAIN_PREFIX02 to prefix02,
+                    TableInfo.TABLE_CHAIN_SUFFIX to saffix,
+                    TableInfo.TABLE_CHAIN_START to start
                 )
             )
         }
@@ -419,18 +410,18 @@ constructor(dbPropPath: String, botPropPath: String) {
                 Chain::class.java,
                 Query.select().where(
                     whereEnd + TableInfo.TABLE_CHAIN_PREFIX01
-                            + "=? order by rand() limit 1",
+                            + "=? order by rand()",
                     chain[0].suffix
-                )
+                ).limit(1)
             )
             // 終端が見つからなかった場合は、終端を探すのを諦める
             if (whereEnd.length == 0 && nextChain == null || nextChain!!.size == 0) {
                 nextChain = manager.find(
                     Chain::class.java,
                     Query.select().where(
-                        TableInfo.TABLE_CHAIN_PREFIX01 + "=? order by rand() limit 1",
+                        TableInfo.TABLE_CHAIN_PREFIX01 + "=? order by rand()",
                         chain[0].suffix
-                    )
+                    ).limit(1)
                 )
             }
             if (nextChain == null || nextChain.size == 0) {
@@ -466,18 +457,18 @@ constructor(dbPropPath: String, botPropPath: String) {
                 Query.select().where(
                     TableInfo.TABLE_CHAIN_SUFFIX + "=? and "
                             + TableInfo.TABLE_CHAIN_START
-                            + "=? limit 1", chain[0].prefix01,
+                            + "=?", chain[0].prefix01,
                     true
-                )
+                ).limit(1)
             )
             if (nextChain == null || nextChain.size == 0) {
                 // 無かったらランダムピック
                 nextChain = manager.find(
                     Chain::class.java,
                     Query.select().where(
-                        TableInfo.TABLE_CHAIN_SUFFIX + "=? order by rand() limit 1",
+                        TableInfo.TABLE_CHAIN_SUFFIX + "=? order by rand()",
                         chain[0].prefix01
-                    )
+                    ).limit(1)
                 )
             }
             if (nextChain == null || nextChain.size == 0) {

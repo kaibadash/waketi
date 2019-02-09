@@ -33,7 +33,6 @@ object StringUtils {
         res = res.replace("[「【(（『].*[」】）』¥¥(¥¥)¥¥[¥¥]]".toRegex(), "")
         res = res.replace("\"".toRegex(), "")
         res = res.replace("[\uE000-\uF8FF]".toRegex(), "。") // 携帯の絵文字
-        res = res.replace("[\u1F004-\u1F6C0]".toRegex(), "。") // unicodeの絵文字
         return res
     }
 

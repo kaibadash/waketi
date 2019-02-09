@@ -33,9 +33,8 @@ object DBUtil {
     fun getEntityManager(propPath: String): EntityManager {
         if (manager == null) {
             loadProp(propPath)
-
             manager = EntityManagerBuilder
-                .url(dbUri)
+                .url(dbUri + "?useSSL=false")
                 .username(dbUser)
                 .password(dbPassword)
                 .auto()

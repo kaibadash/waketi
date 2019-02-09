@@ -1,6 +1,7 @@
 package com.pokosho.dao
 
 import net.java.ao.Entity
+import net.java.ao.RawEntity
 import net.java.ao.schema.AutoIncrement
 import net.java.ao.schema.NotNull
 import net.java.ao.schema.PrimaryKey
@@ -9,7 +10,7 @@ import net.java.ao.schema.PrimaryKey
  * 三階のマルコフ.
  * @author kaiba
  */
-interface Chain : Entity {
+interface Chain : RawEntity<Int> {
     @get:PrimaryKey
     @get:NotNull
     @get:AutoIncrement
@@ -22,6 +23,4 @@ interface Chain : Entity {
      * 開始かどうか
      */
     var start: Boolean?
-
-    fun setSafix(safix: Int?)
 }

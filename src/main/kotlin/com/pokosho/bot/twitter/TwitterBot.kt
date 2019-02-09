@@ -192,6 +192,7 @@ constructor(dbPropPath: String, botPropPath: String) : AbstractBot(dbPropPath, b
                     val splited = tweet.split("。".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
                     // 「。」で切れたところで文章の終わりとする
                     for (msg in splited) {
+                        studyFromLine(msg)
                         // 数字で終わるtweetは誰が教えているのか？
                         val matcher = endsWithNumPattern.matcher(msg)
                         if (matcher.matches()) {
