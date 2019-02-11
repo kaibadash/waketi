@@ -1,6 +1,7 @@
 package com.pokosho.test
 
 import com.pokosho.bot.twitter.TwitterUtils
+import com.pokosho.util.StringUtils
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 
@@ -26,16 +27,16 @@ class TwitterUtilsTest {
 
     @Test
     fun testContains() {
-        assertTrue(TwitterUtils.containsJPN("酒飲まずにはいられない"))
-        assertTrue(TwitterUtils.containsKR("한글"))
-        assertTrue(TwitterUtils.containsSurrogatePair("low surrogate \uD800"))
-        assertTrue(TwitterUtils.containsSurrogatePair("high surrogate \uDFFF"))
+        assertTrue(StringUtils.containsJPN("酒飲まずにはいられない"))
+        assertTrue(StringUtils.containsKR("한글"))
+        assertTrue(StringUtils.containsSurrogatePair("low surrogate \uD800"))
+        assertTrue(StringUtils.containsSurrogatePair("high surrogate \uDFFF"))
     }
 
     @Test
     fun testNotContains() {
-        assertFalse(TwitterUtils.containsSurrogatePair("賢い、可愛い、わけち"))
-        assertFalse(TwitterUtils.containsJPN("URYYY!!!"))
-        assertFalse(TwitterUtils.containsKR("このテストは腐ってる。使えないよ。"))
+        assertFalse(StringUtils.containsSurrogatePair("賢い、可愛い、わけち"))
+        assertFalse(StringUtils.containsJPN("URYYY!!!"))
+        assertFalse(StringUtils.containsKR("このテストは腐ってる。使えないよ。"))
     }
 }

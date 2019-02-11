@@ -67,6 +67,10 @@ constructor(dbPropPath: String, botPropPath: String) : AbstractBot(dbPropPath, b
         return s
     }
 
+    override fun isSpam(message: String): Boolean {
+        return TwitterUtils.isSpamTweet(message)
+    }
+
     @Throws(PokoshoException::class)
     fun reply() {
         var s: String?
@@ -118,7 +122,6 @@ constructor(dbPropPath: String, botPropPath: String) : AbstractBot(dbPropPath, b
             } catch (e: TwitterException) {
                 PokoshoException(e)
             }
-
         }
     }
 
@@ -149,7 +152,6 @@ constructor(dbPropPath: String, botPropPath: String) : AbstractBot(dbPropPath, b
                 doFollow(notFollowIdList)
             }
 
-            // HomeTimeLine取得
             val id = loadLastRead(WORK_LAST_READ_FILE)
             val page = Paging()
             page.count = STATUS_MAX_COUNT
@@ -162,11 +164,9 @@ constructor(dbPropPath: String, botPropPath: String) : AbstractBot(dbPropPath, b
             val notTeachers = TwitterUtils
                 .getNotTeachers(notTreacherPath!!)
             for (s in homeTimeLineList) {
-                if (!DEBUG) {
-                    if (s.id <= id) {
-                        log.info("found last tweet. id:$id")
-                        break
-                    }
+                if (s.id <= id) {
+                    log.info("found last tweet. id:$id")
+                    break
                 }
                 if (notTeachers.contains(s.user.id)) {
                     log.debug("not teacher:" + s.user.id)
@@ -176,7 +176,7 @@ constructor(dbPropPath: String, botPropPath: String) : AbstractBot(dbPropPath, b
                     if (s.user.id == selfUser!!.id)
                         continue
                     var tweet = s.text
-                    if (TwitterUtils.isSpamTweet(tweet)) {
+                    if (isSpam(tweet)) {
                         log.debug(
                             "spam:" + tweet + " user:"
                                     + s.user.screenName
@@ -190,7 +190,7 @@ constructor(dbPropPath: String, botPropPath: String) : AbstractBot(dbPropPath, b
                     val split = tweet.split("。".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
                     // 「。」で切れたところで文章の終わりとする
                     for (msg in split) {
-                        studyFromLine(msg)
+                        studyFromMessage(msg)
                         // 数字で終わるtweetは誰が教えているのか？
                         val matcher = endsWithNumPattern.matcher(msg)
                         if (matcher.matches()) {
@@ -213,11 +213,11 @@ constructor(dbPropPath: String, botPropPath: String) : AbstractBot(dbPropPath, b
     private fun saveLastRead(id: Long, path: String) {
         var pw: PrintWriter? = null
         var bw: BufferedWriter? = null
-        var filewriter: FileWriter? = null
+        var fileWriter: FileWriter? = null
         try {
             val file = File(path)
-            filewriter = FileWriter(file)
-            bw = BufferedWriter(filewriter)
+            fileWriter = FileWriter(file)
+            bw = BufferedWriter(fileWriter)
             pw = PrintWriter(bw)
             pw.print(id)
         } catch (e: IOException) {
@@ -226,7 +226,7 @@ constructor(dbPropPath: String, botPropPath: String) : AbstractBot(dbPropPath, b
             try {
                 pw?.close()
                 bw?.close()
-                filewriter?.close()
+                fileWriter?.close()
             } catch (e: Exception) {
                 log.error(e.toString())
             }
@@ -236,14 +236,14 @@ constructor(dbPropPath: String, botPropPath: String) : AbstractBot(dbPropPath, b
 
     private fun loadLastRead(path: String): Long {
         var id: Long = 0
-        var filereader: FileReader? = null
+        var fileReader: FileReader? = null
         var br: BufferedReader? = null
         try {
             val file = File(path)
             if (!file.exists())
                 return 0
-            filereader = FileReader(file)
-            br = BufferedReader(filereader)
+            fileReader = FileReader(file)
+            br = BufferedReader(fileReader)
             id = java.lang.Long.valueOf(br.readLine())
         } catch (e: IOException) {
             log.error("io error", e)
@@ -252,7 +252,7 @@ constructor(dbPropPath: String, botPropPath: String) : AbstractBot(dbPropPath, b
         } finally {
             try {
                 br?.close()
-                filereader?.close()
+                fileReader?.close()
             } catch (e: IOException) {
                 log.error("io error", e)
             }
@@ -338,7 +338,7 @@ constructor(dbPropPath: String, botPropPath: String) : AbstractBot(dbPropPath, b
             )
             return true
         }
-        if (!TwitterUtils.containsJPN(prof)) {
+        if (!StringUtils.containsJPN(prof)) {
             log.info(
                 SPAM_USER_LOG_LABEL + user.screenName + " "
                         + user.id + " has not profile in Japanese."
@@ -352,7 +352,7 @@ constructor(dbPropPath: String, botPropPath: String) : AbstractBot(dbPropPath, b
             )
             return true
         }
-        for (w in spamWords!!) {
+        for (w in spamWords) {
             if (0 < prof.indexOf(w)) {
                 log.info(
                     SPAM_USER_LOG_LABEL + user.screenName + " "

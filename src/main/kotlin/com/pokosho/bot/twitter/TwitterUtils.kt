@@ -1,5 +1,7 @@
 package com.pokosho.bot.twitter
 
+import com.pokosho.util.StringUtils.containsKR
+import com.pokosho.util.StringUtils.containsSurrogatePair
 import org.slf4j.LoggerFactory
 import java.io.BufferedReader
 import java.io.FileNotFoundException
@@ -23,18 +25,7 @@ object TwitterUtils {
     private val MENTION_PATTERN = Pattern.compile(
         "@[a-z0-9_:]*", Pattern.CASE_INSENSITIVE
     )
-    private val CONTAIN_JPN_PATTERN = Pattern.compile(
-        "[ぁ-んァ-ヴ一-龠]+", Pattern.CASE_INSENSITIVE
-    )
-    private val ALNUM_PATTERN = Pattern.compile(
-        "[0-9a-zA-Z:\\-]", Pattern.CASE_INSENSITIVE
-    )
-    private val ALFABET_PATTERN = Pattern.compile(
-        "[a-zA-Z:\\-]", Pattern.CASE_INSENSITIVE
-    )
-    private val HANGUL_PATTERN = Pattern.compile(
-        "[\uAC00-\uD79F]", Pattern.CASE_INSENSITIVE
-    )
+
     private val FOUR_SQ_URL = "http://4sq.com/"
     private val RT_STR = "RT"
     private val QT_STR = "QT"
@@ -65,38 +56,7 @@ object TwitterUtils {
         if (containsKR(tweet)) {
             return true
         }
-        return if (containsSurrogatePair(tweet)) {
-            true
-        } else false
-    }
-
-    fun containsJPN(tweet: String): Boolean {
-        val matcher = CONTAIN_JPN_PATTERN.matcher(tweet)
-        return matcher.find()
-    }
-
-    fun containsKR(tweet: String): Boolean {
-        val matcher = HANGUL_PATTERN.matcher(tweet)
-        return matcher.find()
-    }
-
-    fun containsSurrogatePair(tweet: String): Boolean {
-        for (c in tweet.toCharArray()) {
-            if (Character.isLowSurrogate(c) || Character.isHighSurrogate(c)) {
-                return true
-            }
-        }
-        return false
-    }
-
-    fun isAlnum(c: Char): Boolean {
-        val matcher = ALNUM_PATTERN.matcher(Character.toString(c))
-        return matcher.find()
-    }
-
-    fun isAlfabet(c: Char): Boolean {
-        val matcher = ALFABET_PATTERN.matcher(Character.toString(c))
-        return matcher.find()
+        return containsSurrogatePair(tweet)
     }
 
     fun getNotTeachers(notTeachersFile: String): Set<Long> {
@@ -109,7 +69,7 @@ object TwitterUtils {
             var line: String?
             do {
                 line = br.readLine()
-                if (line == null) break;
+                if (line == null) break
                 notTeacher.add(java.lang.Long.parseLong(line))
             } while (line != null)
         } catch (e: NumberFormatException) {

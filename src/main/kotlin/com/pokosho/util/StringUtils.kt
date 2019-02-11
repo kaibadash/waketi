@@ -1,9 +1,20 @@
 package com.pokosho.util
 
 import com.pokosho.db.Pos
+import java.util.regex.Pattern
 
 object StringUtils {
     var ENCODE_STRING = "UTF-8"
+    private val ALFABET_PATTERN = Pattern.compile(
+        "[a-zA-Z:\\-]", Pattern.CASE_INSENSITIVE
+    )
+    private val CONTAIN_JPN_PATTERN = Pattern.compile(
+        "[ぁ-んァ-ヴ一-龠]+", Pattern.CASE_INSENSITIVE
+    )
+
+    private val HANGUL_PATTERN = Pattern.compile(
+        "[\uAC00-\uD79F]", Pattern.CASE_INSENSITIVE
+    )
     private val NOUN = "名詞"
     private val VERV = "動詞"
     private val ADJECTIVE = "形容詞"
@@ -74,5 +85,29 @@ object StringUtils {
         return if (p.startsWith(JOSHI)) {
             Pos.Joshi
         } else Pos.Other
+    }
+
+    fun isAlfabet(c: Char): Boolean {
+        val matcher = ALFABET_PATTERN.matcher(Character.toString(c))
+        return matcher.find()
+    }
+
+    fun containsJPN(tweet: String): Boolean {
+        val matcher = CONTAIN_JPN_PATTERN.matcher(tweet)
+        return matcher.find()
+    }
+
+    fun containsKR(tweet: String): Boolean {
+        val matcher = HANGUL_PATTERN.matcher(tweet)
+        return matcher.find()
+    }
+
+    fun containsSurrogatePair(tweet: String): Boolean {
+        for (c in tweet.toCharArray()) {
+            if (Character.isLowSurrogate(c) || Character.isHighSurrogate(c)) {
+                return true
+            }
+        }
+        return false
     }
 }

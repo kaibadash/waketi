@@ -1,7 +1,6 @@
 package com.pokosho.bot
 
 import com.pokosho.PokoshoException
-import com.pokosho.bot.twitter.TwitterUtils
 import com.pokosho.dao.Chain
 import com.pokosho.dao.Word
 import com.pokosho.db.DBUtil
@@ -24,13 +23,12 @@ abstract class AbstractBot @Throws(PokoshoException::class)
 constructor(dbPropPath: String, botPropPath: String) {
     private val tokenizer: JapaneseTokenizer
     private val strRep: StrRep
-    private val prop: Properties
+    private val prop: Properties = Properties()
     private val manager: EntityManager
     private val log = LoggerFactory.getLogger(AbstractBot::class.java)
     private val CHAIN_COUNT = 3
 
     init {
-        prop = Properties()
         log.debug("dbPropPath:$dbPropPath")
         log.debug("botPropPath:$botPropPath")
         try {
@@ -51,21 +49,9 @@ constructor(dbPropPath: String, botPropPath: String) {
         this.tokenizer = JapaneseTokenizer(null, false, JapaneseTokenizer.Mode.NORMAL)
     }
 
-    /**
-     * 学習する.
-     *
-     * @param file
-     * @throws PokoshoException
-     */
     @Throws(PokoshoException::class)
     abstract fun study(str: String?)
 
-    /**
-     * 発言を返す.
-     *
-     * @return 発言.
-     * @throws PokoshoException
-     */
     @Throws(PokoshoException::class)
     open fun say(): String? {
         var result: String?
@@ -88,7 +74,6 @@ constructor(dbPropPath: String, botPropPath: String) {
             log.error(e.message, e)
             throw PokoshoException(e)
         }
-
         return result
     }
 
@@ -172,21 +157,22 @@ constructor(dbPropPath: String, botPropPath: String) {
         }
     }
 
+    open fun isSpam(message: String): Boolean {
+        return false
+    }
+
     @Throws(IOException::class, SQLException::class)
-    protected fun studyFromLine(str: String?) {
-        // スパム判定
-        if (str == null || str.isEmpty()) {
+    protected fun studyFromMessage(message: String) {
+        if (message.isEmpty()) {
             return
         }
-        var target = str
-        if (!TwitterUtils.containsJPN(target)) {
+        if (!StringUtils.containsJPN(message)) {
             return
         }
-        // TODO:AbstractBoxにTweetの処理が来るのはおかしい… TwitterBotでやるべき
-        if (TwitterUtils.isSpamTweet(target)) {
+        if (isSpam(message)) {
             return
         }
-        target = StringUtils.simplify(target)
+        val target = StringUtils.simplify(message)
 
         tokenizer.setReader(StringReader(target))
         tokenizer.reset()
@@ -464,8 +450,8 @@ constructor(dbPropPath: String, botPropPath: String) {
             val lastChar = word.word.last()
             // 半角英語の間にスペースを入れる
             if (result.length != 0
-                && TwitterUtils.isAlfabet(lastChar)
-                && TwitterUtils.isAlfabet(result.last())
+                && StringUtils.isAlfabet(lastChar)
+                && StringUtils.isAlfabet(result.last())
             ) {
                 result.append(" ")
             }

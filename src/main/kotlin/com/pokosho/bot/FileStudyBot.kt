@@ -14,13 +14,13 @@ constructor(dbPropPath: String, botPropPath: String) : AbstractBot(dbPropPath, b
     @Throws(PokoshoException::class)
     override fun study(str: String?) {
         try {
-            FileReader(str).use { freader ->
-                BufferedReader(freader).use { reader ->
-                    var line: String?
+            FileReader(str).use { fileReader ->
+                BufferedReader( fileReader).use { reader ->
+                    var message: String?
                     do {
-                        line = reader.readLine()
-                        studyFromLine(line)
-                    } while (line != null)
+                        message = reader.readLine()
+                        studyFromMessage(message)
+                    } while (message != null)
                 }
             }
         } catch (e: Exception) {
