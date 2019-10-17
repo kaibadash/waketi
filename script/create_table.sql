@@ -42,6 +42,6 @@ c.safix, w3.word_id, w3.word
  INNER JOIN word w2
  ON c.prefix02 = w2.word_id
  INNER JOIN word w3
- ON c.safix = w3.word_id;
+ ON c.saffix = w3.word_id;
 
 
