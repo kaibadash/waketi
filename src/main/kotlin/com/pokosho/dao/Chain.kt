@@ -13,9 +13,9 @@ interface Chain : RawEntity<Int> {
     @get:PrimaryKey
     @get:NotNull
     @get:AutoIncrement
-    val chain_ID: Int?
-    var prefix01: Int?
-    var prefix02: Int?
+    val chain_ID: Int
+    var prefix01: Int
+    var prefix02: Int
     val suffix: Int?
 
     /**

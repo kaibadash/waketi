@@ -89,7 +89,7 @@ constructor(dbPropPath: String, botPropPath: String) {
     fun say(from: String, numberOfDocuments: Int): String? {
         var targetFrom = from
         var maxTFIDF = 0.0
-        var keyword: Word? = null
+        var keyword: String? = null
 
         try {
             log.debug("reply base:$targetFrom")
@@ -101,20 +101,14 @@ constructor(dbPropPath: String, botPropPath: String) {
             while (tokenizer.incrementToken()) {
                 val charAttr = tokenizer.addAttribute(CharTermAttribute::class.java)
                 val posAttr = tokenizer.addAttribute(PartOfSpeechAttribute::class.java)
-
-                val word = this.manager.create(Word::class.java)
-                word.word = charAttr.toString()
-                word.pos_ID = StringUtils.toPos(posAttr.partOfSpeech).intValue
-                log.debug("surface:${word.word} features:${word.word}")
-
+                val word = charAttr.toString()
                 // FIXME: wordにenumを保持できないか? intValueやめたい。
-                if (word.pos_ID == Pos.Noun.intValue) {
-                    val tdidf = TFIDF.calculateTFIDF(
-                        manager, targetFrom,
-                        word.word, numberOfDocuments.toLong()
+                if (StringUtils.toPos(posAttr.partOfSpeech).intValue == Pos.Noun.intValue) {
+                    val tfidf = TFIDF.calculateTFIDF(
+                        manager, targetFrom, word, numberOfDocuments.toLong()
                     )
-                    if (maxTFIDF < tdidf) {
-                        maxTFIDF = tdidf
+                    if (maxTFIDF < tfidf) {
+                        maxTFIDF = tfidf
                         keyword = word
                     }
                 }
@@ -127,7 +121,7 @@ constructor(dbPropPath: String, botPropPath: String) {
             }
             val word = manager.find(
                 Word::class.java,
-                Query.select().where(TableInfo.TABLE_WORD_WORD + " = ?", keyword.word)
+                Query.select().where(TableInfo.TABLE_WORD_WORD + " = ?", keyword)
             ).first()
             // word found, start creating chain
             var chain: Array<Chain> = manager.find(
@@ -154,6 +148,8 @@ constructor(dbPropPath: String, botPropPath: String) {
             return strRep.rep(createWordsFromIDList(idList))
         } catch (e: SQLException) {
             throw PokoshoException(e)
+        } finally {
+            tokenizer.close()
         }
     }
 
