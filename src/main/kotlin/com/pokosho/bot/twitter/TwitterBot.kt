@@ -47,7 +47,6 @@ constructor(dbPropPath: String, botPropPath: String) : AbstractBot(dbPropPath, b
         } catch (e: TwitterException) {
             throw PokoshoException(e)
         }
-
     }
 
     @Throws(PokoshoException::class)
@@ -61,9 +60,8 @@ constructor(dbPropPath: String, botPropPath: String) : AbstractBot(dbPropPath, b
             log.info("updateStatus:$s")
             twitter.updateStatus(s)
         } catch (e: TwitterException) {
-            PokoshoException(e)
+            throw PokoshoException(e)
         }
-
         return s
     }
 
