@@ -47,7 +47,6 @@ constructor(dbPropPath: String, botPropPath: String) : AbstractBot(dbPropPath, b
         } catch (e: TwitterException) {
             throw PokoshoException(e)
         }
-
     }
 
     @Throws(PokoshoException::class)
@@ -61,9 +60,8 @@ constructor(dbPropPath: String, botPropPath: String) : AbstractBot(dbPropPath, b
             log.info("updateStatus:$s")
             twitter.updateStatus(s)
         } catch (e: TwitterException) {
-            PokoshoException(e)
+            throw PokoshoException(e)
         }
-
         return s
     }
 
@@ -120,7 +118,7 @@ constructor(dbPropPath: String, botPropPath: String) : AbstractBot(dbPropPath, b
                 us.inReplyToStatusId = from.id
                 twitter.updateStatus(us)
             } catch (e: TwitterException) {
-                PokoshoException(e)
+                throw PokoshoException(e)
             }
         }
     }
@@ -414,7 +412,6 @@ constructor(dbPropPath: String, botPropPath: String) : AbstractBot(dbPropPath, b
 
         /**
          * ホームタイムラインから学習し、1回ツイートします.
-         *
          * @param args
          */
         @JvmStatic
@@ -433,13 +430,11 @@ constructor(dbPropPath: String, botPropPath: String) : AbstractBot(dbPropPath, b
                     if (mode == "-c") {
                         b.cleaning()
                     }
-                    if (mode == "-s") {
-                        b.reply()
-                    }
                     return
                 }
                 b.study(null)
                 b.say()
+                b.reply()
             } catch (e: Exception) {
                 log.error("system error", e)
             }
