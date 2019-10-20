@@ -11,6 +11,7 @@ import com.pokosho.util.StringUtils
 import net.java.ao.EntityManager
 import net.java.ao.Query
 import org.apache.lucene.analysis.ja.JapaneseTokenizer
+import org.apache.lucene.analysis.ja.dict.UserDictionary
 import org.apache.lucene.analysis.ja.tokenattributes.PartOfSpeechAttribute
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute
 import org.slf4j.LoggerFactory
@@ -31,10 +32,14 @@ constructor(dbPropPath: String, botPropPath: String) {
     init {
         log.debug("dbPropPath:$dbPropPath")
         log.debug("botPropPath:$botPropPath")
+
         try {
             prop.load(FileInputStream(botPropPath))
             strRep = StrRep(prop.getProperty("com.pokosho.repstr"))
+            val reader = InputStreamReader(FileInputStream(prop.getProperty("com.pokosho.user_dictionary")))
+            val userDictionary = UserDictionary.open(reader)
             this.manager = DBUtil.getEntityManager(dbPropPath)
+            this.tokenizer = JapaneseTokenizer(userDictionary, false, JapaneseTokenizer.Mode.NORMAL)
         } catch (e1: FileNotFoundException) {
             log.error("FileNotFoundException", e1)
             throw PokoshoException(e1)
@@ -45,8 +50,6 @@ constructor(dbPropPath: String, botPropPath: String) {
             log.error("system error", e)
             throw PokoshoException(e)
         }
-
-        this.tokenizer = JapaneseTokenizer(null, false, JapaneseTokenizer.Mode.NORMAL)
     }
 
     @Throws(PokoshoException::class)
