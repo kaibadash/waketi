@@ -9,7 +9,7 @@ import java.io.FileReader
  * @author kaiba
  */
 class FileStudyBot @Throws(PokoshoException::class)
-constructor(dbPropPath: String, botPropPath: String) : AbstractBot(dbPropPath, botPropPath) {
+constructor(botPropPath: String) : AbstractBot(botPropPath) {
 
     @Throws(PokoshoException::class)
     override fun study(str: String?) {

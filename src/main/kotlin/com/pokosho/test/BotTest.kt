@@ -8,7 +8,6 @@ import org.slf4j.LoggerFactory
 
 object BotTest {
     private val log = LoggerFactory.getLogger(BotTest::class.java)
-    private val DB_PROP = "./conf/db.properties"
     private val BOT_PROP = "./conf/bot.properties"
     private val LOG_PROP = "./conf/log.properties"
     /**
@@ -21,20 +20,16 @@ object BotTest {
             System.setProperty("sen.home", "./sen-1.2.2.1")
             System.setProperty("java.util.logging.config.file", LOG_PROP)
             System.setProperty("twitter4j.loggerFactory", "twitter4j.internal.logging.NullLoggerFactory")
-            //studyFromFile();
-            //print();
             startTwitterBot()
-
         } catch (e: Exception) {
             e.printStackTrace()
         }
-
     }
 
     @Throws(PokoshoException::class)
     private fun studyFromFile() {
         val filePath = "./test/ruizu.txt"
-        val b = FileStudyBot(DB_PROP, BOT_PROP)
+        val b = FileStudyBot(BOT_PROP)
         b.study(filePath)
         log.info(b.say())
     }
@@ -42,7 +37,7 @@ object BotTest {
     //	@SuppressWarnings("unused")
     @Throws(PokoshoException::class)
     private fun startTwitterBot() {
-        val b = TwitterBot(DB_PROP, BOT_PROP)
+        val b = TwitterBot(BOT_PROP)
         //b.study(null);
         //b.say();
         //b.say("東京タワー登りたいの？");
@@ -51,7 +46,7 @@ object BotTest {
 
     @Throws(PokoshoException::class)
     private fun print() {
-        val b = FileStudyBot(DB_PROP, BOT_PROP)
+        val b = FileStudyBot(BOT_PROP)
         println(b.say())
     }
 }
