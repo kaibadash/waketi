@@ -10,6 +10,7 @@ object TableInfo {
     var TABLE_CHAIN_PREFIX02 = "prefix02"
     var TABLE_CHAIN_START = "start"
     var TABLE_CHAIN_SUFFIX = "suffix"
+
     // reply
     var TABLE_REPLY_TIME = "time"
     var TABLE_REPLY_USER_ID = "user_id"

@@ -21,7 +21,7 @@ import java.util.*
 import kotlin.collections.ArrayList
 
 abstract class AbstractBot @Throws(PokoshoException::class)
-constructor(dbPropPath: String, botPropPath: String) {
+constructor(botPropPath: String) {
     private val tokenizer: JapaneseTokenizer
     private val strRep: StrRep
     private val prop: Properties = Properties()
@@ -30,7 +30,6 @@ constructor(dbPropPath: String, botPropPath: String) {
     private val CHAIN_COUNT = 3
 
     init {
-        log.debug("dbPropPath:$dbPropPath")
         log.debug("botPropPath:$botPropPath")
 
         try {
@@ -38,7 +37,7 @@ constructor(dbPropPath: String, botPropPath: String) {
             strRep = StrRep(prop.getProperty("com.pokosho.repstr"))
             val reader = InputStreamReader(FileInputStream(prop.getProperty("com.pokosho.user_dictionary")))
             val userDictionary = UserDictionary.open(reader)
-            this.manager = DBUtil.getEntityManager(dbPropPath)
+            this.manager = DBUtil.getEntityManager(botPropPath)
             this.tokenizer = JapaneseTokenizer(userDictionary, false, JapaneseTokenizer.Mode.NORMAL)
         } catch (e1: FileNotFoundException) {
             log.error("FileNotFoundException", e1)

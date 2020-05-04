@@ -8,3 +8,4 @@ kuromoji-ipadic-neologd-*.jar
 bak
 waketi_*.txt
 local.properties
+conf/bot.properties
