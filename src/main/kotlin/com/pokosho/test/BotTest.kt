@@ -10,6 +10,7 @@ object BotTest {
     private val log = LoggerFactory.getLogger(BotTest::class.java)
     private val BOT_PROP = "./conf/bot.properties"
     private val LOG_PROP = "./conf/log.properties"
+
     /**
      * @param args
      */

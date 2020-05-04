@@ -394,6 +394,7 @@ constructor(botPropPath: String) : AbstractBot(botPropPath) {
         private val WORK_LAST_FOLLOW_FILE = "waketi_last_follow.txt"
         private val FOLLOW_INTERVAL_MSEC = 60 * 60 * 3 * 1000 // フォロー返しの間隔
         private val STATUS_MAX_COUNT = 200
+
         // TF-IDFのN. 以前のコストと比較するわけではないので定数で良い
         private val NUMBER_OF_DOCUMENT = 100000
         private var spamWords: Set<String> = setOf()

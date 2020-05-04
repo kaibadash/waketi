@@ -15,7 +15,7 @@ constructor(botPropPath: String) : AbstractBot(botPropPath) {
     override fun study(str: String?) {
         try {
             FileReader(str).use { fileReader ->
-                BufferedReader( fileReader).use { reader ->
+                BufferedReader(fileReader).use { reader ->
                     var message: String?
                     do {
                         message = reader.readLine()
