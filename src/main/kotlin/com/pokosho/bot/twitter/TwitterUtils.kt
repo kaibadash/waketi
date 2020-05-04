@@ -3,10 +3,7 @@ package com.pokosho.bot.twitter
 import com.pokosho.util.StringUtils.containsKR
 import com.pokosho.util.StringUtils.containsSurrogatePair
 import org.slf4j.LoggerFactory
-import java.io.BufferedReader
-import java.io.FileNotFoundException
-import java.io.FileReader
-import java.io.IOException
+import java.io.*
 import java.util.*
 import java.util.regex.Pattern
 
@@ -92,16 +89,12 @@ object TwitterUtils {
 
     fun getStringSet(filePath: String): Set<String> {
         val stringSet = HashSet<String>()
-        var reader: FileReader? = null
-        var br: BufferedReader? = null
+        val reader: FileReader? = null
+        val br: BufferedReader? = null
         try {
-            reader = FileReader(filePath)
-            br = BufferedReader(reader)
-            var line: String?
-            do {
-                line = br.readLine()
-                stringSet.add(line)
-            } while (line != null)
+            File(filePath).readText().split("\n").filter { it.isNotEmpty() }.forEach {
+                stringSet.add(it)
+            }
         } catch (e: NumberFormatException) {
             log.error("format error", e)
         } catch (e: FileNotFoundException) {
