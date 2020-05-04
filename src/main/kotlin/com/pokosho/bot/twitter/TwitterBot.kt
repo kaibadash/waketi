@@ -16,7 +16,7 @@ import java.util.regex.Pattern
  * @author kaiba
  */
 class TwitterBot @Throws(PokoshoException::class)
-constructor(dbPropPath: String, botPropPath: String) : AbstractBot(dbPropPath, botPropPath) {
+constructor(botPropPath: String) : AbstractBot(botPropPath) {
     private var maxReplyCountPerHour = 10
     private var maxReplyIntervalSec = 60 * 60
     private val twitter: Twitter
@@ -386,7 +386,6 @@ constructor(dbPropPath: String, botPropPath: String) : AbstractBot(dbPropPath, b
 
     companion object {
         private val log = LoggerFactory.getLogger(TwitterBot::class.java)
-        private val DB_PROP = "./conf/db.properties"
         private val BOT_PROP = "./conf/bot.properties"
         private val LOG_PROP = "./conf/log.properties"
         private val DEBUG = false // かならず全処理を行う
@@ -395,6 +394,7 @@ constructor(dbPropPath: String, botPropPath: String) : AbstractBot(dbPropPath, b
         private val WORK_LAST_FOLLOW_FILE = "waketi_last_follow.txt"
         private val FOLLOW_INTERVAL_MSEC = 60 * 60 * 3 * 1000 // フォロー返しの間隔
         private val STATUS_MAX_COUNT = 200
+
         // TF-IDFのN. 以前のコストと比較するわけではないので定数で良い
         private val NUMBER_OF_DOCUMENT = 100000
         private var spamWords: Set<String> = setOf()
@@ -424,7 +424,7 @@ constructor(dbPropPath: String, botPropPath: String) : AbstractBot(dbPropPath, b
                     "twitter4j.internal.logging.NullLoggerFactory"
                 )
 
-                val b = TwitterBot(DB_PROP, BOT_PROP)
+                val b = TwitterBot(BOT_PROP)
                 if (0 < args.size) {
                     val mode = args[0]
                     if (mode == "-c") {

@@ -9,13 +9,13 @@ import java.io.FileReader
  * @author kaiba
  */
 class FileStudyBot @Throws(PokoshoException::class)
-constructor(dbPropPath: String, botPropPath: String) : AbstractBot(dbPropPath, botPropPath) {
+constructor(botPropPath: String) : AbstractBot(botPropPath) {
 
     @Throws(PokoshoException::class)
     override fun study(str: String?) {
         try {
             FileReader(str).use { fileReader ->
-                BufferedReader( fileReader).use { reader ->
+                BufferedReader(fileReader).use { reader ->
                     var message: String?
                     do {
                         message = reader.readLine()

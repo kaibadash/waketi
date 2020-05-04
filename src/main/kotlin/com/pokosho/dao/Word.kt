@@ -10,12 +10,16 @@ interface Word : RawEntity<Int> {
     @get:NotNull
     @get:AutoIncrement
     val word_ID: Int
+
     @get:NotNull
     var pos_ID: Int
+
     @get:NotNull
     var word: String
+
     @get:NotNull
     var word_Count: Int
+
     @get:NotNull
     var time: Int
 }
