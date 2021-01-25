@@ -10,3 +10,4 @@ waketi_*.txt
 local.properties
 conf/bot.properties
 waketi*jar
+docker/*
