@@ -351,7 +351,6 @@ constructor(botPropPath: String) : AbstractBot(botPropPath) {
             return true
         }
         for (w in spamWords) {
-            log.error("aaaaaaaaaa: word:${w} ${prof}")
             if (0 < prof.indexOf(w)) {
                 log.info(
                     SPAM_USER_LOG_LABEL + user.screenName + " "
@@ -417,7 +416,6 @@ constructor(botPropPath: String) : AbstractBot(botPropPath) {
          */
         @JvmStatic
         fun main(args: Array<String>) {
-            log.error("aaaaaaa")
             try {
                 System.setProperty("file.encoding", StringUtils.ENCODE_STRING)
                 System.setProperty("java.util.logging.config.file", LOG_PROP)
