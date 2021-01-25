@@ -190,7 +190,7 @@ constructor(botPropPath: String) {
                 existWord = saveNewWord(word, posID)
             } else {
                 // FIXME: !!削除。DBでnot null default 1 にすべき
-                existWord[0].word_Count = existWord[0].word_Count!! + 1
+                existWord[0].word_Count = existWord[0].word_Count + 1
                 existWord[0].time = (System.currentTimeMillis() / 1000).toInt()
                 existWord[0].save()
             }
@@ -243,7 +243,7 @@ constructor(botPropPath: String) {
                 val sb = StringBuffer()
                 for (w in words) {
                     // FIXME: DBで not nullにすべき
-                    sb.append(w.word_ID!!.toString() + ",")
+                    sb.append(w.word_ID.toString() + ",")
                 }
                 if (sb.length == 0) {
                     continue
@@ -380,7 +380,7 @@ constructor(botPropPath: String) {
             }
             idList.add(nextChain[0].prefix01)
             idList.add(nextChain[0].prefix02)
-            log.debug("picked chain id " + nextChain[0].chain_ID!!)
+            log.debug("picked chain id " + nextChain[0].chain_ID)
             chain = nextChain
             loopCount++
         }
@@ -423,7 +423,7 @@ constructor(botPropPath: String) {
             }
             idList.add(0, nextChain[0].prefix01)
             idList.add(1, nextChain[0].prefix02)
-            log.debug("picked chain id " + nextChain[0].chain_ID!!)
+            log.debug("picked chain id " + nextChain[0].chain_ID)
             chain = nextChain
         }
         return idList
