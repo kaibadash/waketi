@@ -16,7 +16,7 @@ mysql -uroot -proot -h127.0.0.1 < script/create_table.sql
 
 ### Edit bot.properties
 
-```
+```shell script
 cp conf/bot.properties.sample conf/bot.properties
 vi conf/bot.properties
 ```
