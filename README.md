@@ -28,3 +28,9 @@ vi conf/bot.properties
 # Fill version number
 java -Dfile.encoding=UTF-8 -Xmx400m -jar build/libs/waketi-*-all.jar
 ```
+### Commands
+
+```shell script
+# Cleaning
+java -Dfile.encoding=UTF-8 -Xmx400m -jar build/libs/waketi-*-all.jar -c
+```
